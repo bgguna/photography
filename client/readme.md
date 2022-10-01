@@ -1,3 +1,3 @@
 # Client
 
-[ [**back**](../blob/main/readme.md) | [**server**](../server) ]
+[ [**back**](../readme.md) | [**server**](../server) ]
