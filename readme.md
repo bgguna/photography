@@ -1,3 +1,3 @@
 # Bogdan's Photography Portfolio
 
-[**server**](server/) | [**client**](client/)
+[ [**server**](server/) | [**client**](client/) ]
