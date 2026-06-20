@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com.mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // contactMsg is an incoming contact message/request.
-type contactMsg struct {
+type ContactMsg struct {
 	Id	int	`json:"id"`
 	Name	string	`json:"name"`
 	Email	string	`json:"email"`
@@ -27,7 +27,7 @@ func GetMessages() func(context *gin.Context) {
 
 		db, _ := sql.Open("sqlite3", "./storage/contacts.db")
 
-		var messages = []contactMsg{}
+		var messages = []ContactMsg{}
 		log.Infof("Fetching contact messages...")
 		rows, err := db.Query("SELECT * FROM contact")
 		if err != nil {
@@ -41,7 +41,7 @@ func GetMessages() func(context *gin.Context) {
 			messages = append(messages, msg)
 		}
 
-		log.Infof("Fetched all contact messages: %d.", messages.Size)
+		log.Infof("Fetched all contact messages: %d.", len(messages))
 		context.JSON(http.StatusOK, messages)
 	}
 }
@@ -53,7 +53,7 @@ func HandleNewMsg() func(context *gin.Context) {
 		context.Header("Access-Control-Allow-Methods", "POST")
 
 		db, _ := sql.Open("sqlite3", "./storage/contacts.db")
-		message := contactMsg{}
+		message := ContactMsg{}
 		rawContextData, err := context.GetRawData()
 		if err != nil {
 			log.Errorf("Failed to process request.", err)
@@ -80,6 +80,6 @@ func HandleNewMsg() func(context *gin.Context) {
 		}
 
 		log.Infof("Contact message stored.")
-		context.Json(http.StatusOK, gin.H{"status": "success"})
+		context.JSON(http.StatusOK, gin.H{"status": "success"})
 	}
 }
