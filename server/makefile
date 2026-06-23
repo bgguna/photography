@@ -1,4 +1,13 @@
 # =============================
+# ---------- Environment ------
+# =============================
+
+ifneq ("$(wildcard ../.env)","")
+include ../.env
+export
+endif
+
+# =============================
 # ---------- Project ----------
 # =============================
 
@@ -70,6 +79,24 @@ coverage:
 
 # Runs a suite of makefile commands to clean, format, build and test the server application codebase.
 all: clean format build test
+
+# Database Commands
+init-db:
+	@$(MAKE) -f Makefile.db init
+shell-db:
+	@$(MAKE) -f Makefile.db shell
+backup-db:
+	@$(MAKE) -f Makefile.db backup
+restore-db:
+	@$(MAKE) -f Makefile.db restore BACKUP_FILE="$(BACKUP_FILE)"
+clear-db:
+	@$(MAKE) -f Makefile.db clear
+reset-db:
+	@$(MAKE) -f Makefile.db reset
+start-db:
+	@$(MAKE) -f Makefile.db start
+stop-db:
+	@$(MAKE) -f Makefile.db stop
 
 # Prints the manual, a list of available makefile commands that can be used for the server application.
 help:
