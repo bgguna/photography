@@ -1,14 +1,22 @@
 package main
 
 import (
-  "os"
-  "log"
+	"os"
+	"log"
+
+	"github.com/joho/godotenv"
 )
 
 func init() {
-  log.SetOutput(os.Stdout)
+	log.SetOutput(os.Stdout)
 }
 
 func main() {
-  log.Println("Server application started...")
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Fatal("Failed to load .env file. Error:", err)
+	}
+
+	environment := os.Getenv("MODE_ENV")
+	log.Println("Server application started in", environment, "mode.")
 }
