@@ -2,21 +2,33 @@ package main
 
 import (
 	"os"
-	"log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	logger "log"
 
 	"github.com/joho/godotenv"
 )
 
 func init() {
-	log.SetOutput(os.Stdout)
-}
-
-func main() {
+	// log = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("Failed to load .env file. Error:", err)
+		logger.Fatal("Failed to load .end file. Error:", err)
 	}
 
 	environment := os.Getenv("MODE_ENV")
-	log.Println("Server application started in", environment, "mode.")
+	if environment == "local" || environment == "development" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	} else if environment == "production" {
+		// Using standard logging for 'production'.
+	} else {
+		logger.Fatal("Environment", environment, "is not recognised.")
+		os.Exit(1)
+	}
+
+	log.Info().Msgf("Server application started in %s mode.", environment)
+}
+
+func main() {
+	log.Info().Msg("Need to add some logic here for the controller.")
 }
