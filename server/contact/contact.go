@@ -3,20 +3,21 @@ package contact
 import (
 	"database/sql"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// contactMsg is an incoming contact message/request.
+// ContactMsg is an incoming contact message/request.
 type ContactMsg struct {
-	Id	int	`json:"id"`
-	Name	string	`json:"name"`
-	Email	string	`json:"email"`
-	Phone	string	`json:"phone"`
-	Message	string	`json:"message"`
+	Id      int    `json:"id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
+	Message string `json:"message"`
 }
 
 // GetMessages gets all the contact messages.
@@ -31,7 +32,7 @@ func GetMessages() func(context *gin.Context) {
 		log.Infof("Fetching contact messages...")
 		rows, err := db.Query("SELECT * FROM contact")
 		if err != nil {
-			log.Errorf("Error preparing to fetch all contact messages.", err)
+			log.Errorf("Error encountered while fetching contact messages.", err)
 			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
 		}
 
@@ -41,7 +42,7 @@ func GetMessages() func(context *gin.Context) {
 			messages = append(messages, msg)
 		}
 
-		log.Infof("Fetched all contact messages: %d.", len(messages))
+		log.Infof("Fetched all contact messages: %d messages.", len(messages))
 		context.JSON(http.StatusOK, messages)
 	}
 }
@@ -62,11 +63,11 @@ func HandleNewMsg() func(context *gin.Context) {
 
 		err = json.Unmarshal(rawContextData, &message)
 		if err != nil {
-			log.Errorf("Failed to unmarshal raw data into contact message.", err)
+			log.Errorf("Failed to unmarshal raw data into a contact message.", err)
 			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
 		}
 
-		log.Printf("Received contact message: %+v", message)
+		log.Printf("Received contact message from %+v", name)
 		statement, err := db.Prepare("INSERT INTO contact (name, email, phone, message) VALUE (?, ?, ?, ?)")
 		if err != nil {
 			log.Errorf("Error preparing to store contact message to database.", err)
