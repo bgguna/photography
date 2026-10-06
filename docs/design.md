@@ -168,13 +168,11 @@ Admin (session-gated):
 
 ## Implementation order
 
-1. Clean up `go.mod` (drop `mattn/go-sqlite3` and logrus; settle on
-   `modernc.org/sqlite` + zerolog).
-2. Fix `internal/db/db.go` and `contact/contact.go` so they compile and match
-   the schema.
-3. Scaffold the album/session schema changes above.
-4. Wire up `main.go`, build out the route handlers and templates per the
-   sketch above.
-5. Photo upload + EXIF + thumbnail pipeline.
-6. Admin auth (sessions, login/logout, middleware).
-7. Deployment: cross-compile, systemd unit, Caddy config, external drive mount.
+1. ~~Clean up `go.mod` (drop `mattn/go-sqlite3` and logrus; settle on
+   `modernc.org/sqlite` + zerolog).~~ Done.
+2. ~~Fix `internal/db/db.go` and `contact/contact.go` so they compile and
+   match the schema.~~ Done.
+3. Everything remaining is broken out into individual implementation plans in
+   [tasks/](tasks/README.md): schema migrations, app wiring, admin auth, the
+   photo pipeline, the public gallery, the admin UI, the contact form, and
+   Raspberry Pi deployment — in that dependency order.
