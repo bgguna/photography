@@ -2,85 +2,73 @@ package contact
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/gin-gonic/gin"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 )
 
 // ContactMsg is an incoming contact message/request.
 type ContactMsg struct {
-	Id      int    `json:"id"`
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Phone   string `json:"phone"`
-	Message string `json:"message"`
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Message   string `json:"message"`
+	CreatedAt string `json:"created_at,omitempty"`
+	Status    string `json:"status,omitempty"`
 }
 
-// GetMessages gets all the contact messages.
-func GetMessages() func(context *gin.Context) {
-	return func(context *gin.Context) {
-		context.Header("Access-Control-Allow-Origin", "*")
-		context.Header("Access-Control-Allow-Methods", "GET")
-
-		db, _ := sql.Open("sqlite3", "./storage/contacts.db")
-
-		var messages = []ContactMsg{}
-		log.Infof("Fetching contact messages...")
-		rows, err := db.Query("SELECT * FROM contact")
+// GetMessages returns a handler that lists all stored contact messages.
+func GetMessages(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(
+			"SELECT id, name, email, message, created_at, status FROM contact_messages ORDER BY created_at DESC",
+		)
 		if err != nil {
-			log.Errorf("Error encountered while fetching contact messages.", err)
-			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
+			log.Error().Err(err).Msg("failed to fetch contact messages")
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "fail"})
+			return
 		}
+		defer rows.Close()
 
+		messages := []ContactMsg{}
 		for rows.Next() {
 			var msg ContactMsg
-			rows.Scan(&msg.Id, &msg.Name, &msg.Email, &msg.Phone, &msg.Message)
+			if err := rows.Scan(&msg.ID, &msg.Name, &msg.Email, &msg.Message, &msg.CreatedAt, &msg.Status); err != nil {
+				log.Error().Err(err).Msg("failed to scan contact message row")
+				c.JSON(http.StatusInternalServerError, gin.H{"status": "fail"})
+				return
+			}
 			messages = append(messages, msg)
 		}
 
-		log.Infof("Fetched all contact messages: %d messages.", len(messages))
-		context.JSON(http.StatusOK, messages)
+		log.Info().Int("count", len(messages)).Msg("fetched contact messages")
+		c.JSON(http.StatusOK, messages)
 	}
 }
 
-// HandleNewMsg saves an incoming contact message to the database.
-func HandleNewMsg() func(context *gin.Context) {
-	return func(context *gin.Context) {
-		context.Header("Access-Control-Allow-Origin", "*")
-		context.Header("Access-Control-Allow-Methods", "POST")
-
-		db, _ := sql.Open("sqlite3", "./storage/contacts.db")
-		message := ContactMsg{}
-		rawContextData, err := context.GetRawData()
-		if err != nil {
-			log.Errorf("Failed to process request.", err)
-			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
+// HandleNewMsg returns a handler that saves an incoming contact message to the database.
+func HandleNewMsg(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var msg ContactMsg
+		if err := c.ShouldBindJSON(&msg); err != nil {
+			log.Error().Err(err).Msg("failed to bind contact message")
+			c.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
+			return
 		}
 
-		err = json.Unmarshal(rawContextData, &message)
+		log.Info().Str("name", msg.Name).Msg("received contact message")
+		_, err := db.Exec(
+			"INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)",
+			msg.Name, msg.Email, msg.Message,
+		)
 		if err != nil {
-			log.Errorf("Failed to unmarshal raw data into a contact message.", err)
-			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
+			log.Error().Err(err).Msg("failed to store contact message")
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "fail"})
+			return
 		}
 
-		log.Printf("Received contact message from %+v", name)
-		statement, err := db.Prepare("INSERT INTO contact (name, email, phone, message) VALUE (?, ?, ?, ?)")
-		if err != nil {
-			log.Errorf("Error preparing to store contact message to database.", err)
-			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
-		}
-
-		_, err = statement.Exec(message.Name, message.Email, message.Phone, message.Message)
-		if err != nil {
-			log.Errorf("Failed to store contact message.", err)
-			context.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
-		}
-
-		log.Infof("Contact message stored.")
-		context.JSON(http.StatusOK, gin.H{"status": "success"})
+		log.Info().Msg("contact message stored")
+		c.JSON(http.StatusOK, gin.H{"status": "success"})
 	}
 }
