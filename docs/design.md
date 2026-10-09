@@ -19,7 +19,7 @@ publishing photos, deployed on a Raspberry Pi with photos on an external drive.
 ## Architecture
 
 ```
-[Browser] → [Caddy: TLS + reverse proxy + serves photo files directly]
+[Browser] → [Caddy: TLS + reverse proxy]
                     │
                     ▼
             [Go/Gin API server]  ← systemd service
@@ -29,9 +29,12 @@ publishing photos, deployed on a Raspberry Pi with photos on an external drive.
    [SQLite DB on SD card]   [External drive: originals + generated web/thumb sizes]
 ```
 
-Caddy terminates TLS, reverse-proxies everything else to the Go process, and
-serves `/derived/*` and gated `/originals/*` directly off disk so the Go
-process isn't streaming image bytes itself.
+Caddy terminates TLS and reverse-proxies everything to the Go process. Image
+bytes are **also served by Go**, never directly off disk by Caddy: every image
+request is checked against `photos.is_public` (or an admin session) first, so
+a hidden photo can't be fetched by guessing or reusing its URL. Files are sent
+with `c.File` (sendfile), so the cost of going through Go is small at this
+scale.
 
 ## Front-end: htmx + Alpine.js
 
@@ -82,7 +85,7 @@ htmx/template model without any architecture change:
 - **View counts / likes**: a counter column on `photos` + a small
   `POST /photos/:id/like` endpoint returning the updated count as an HTML
   fragment.
-- **More gallery control** (reordering, albums, visibility): more admin
+- **More gallery control** (reordering, hide/publish): more admin
   screens following the same CRUD + htmx pattern already planned.
 - **Instagram cross-posting**: a backend integration (an admin "publish"
   action calls Meta's Graph API), unrelated to the front-end layer entirely —
@@ -99,7 +102,7 @@ server/
     auth/               # session middleware, login/logout, password hashing
     photo/              # upload, EXIF extraction, thumbnail generation, listing
     contact/            # contact form handler + storage
-    gallery/             # public gallery rendering, album/visibility logic
+    gallery/             # public gallery rendering, visibility logic
     web/
       templates/        # .html templates (layouts, gallery, admin pages)
       static/            # css/js/htmx vendor file
@@ -110,11 +113,12 @@ server/
 Base schema (`db/schema.sql`) already has `users`, `gallery_settings`, `photos`,
 `contact_messages`. Additions planned on top of that:
 
-- **`albums`**: `id, title, slug, description, cover_photo_id, sort_order, is_public`.
-  Either a `photo_albums` join table (photos in multiple albums) or a simpler
-  `album_id` FK directly on `photos` if that's not needed.
+- **No albums (for now).** All photos live in a single gallery. Albums can be
+  added later as a new table plus a nullable `album_id` on `photos`.
 - **`photos.sort_order INTEGER`** and **`photos.is_public INTEGER DEFAULT 1`** —
-  lets a photo be uploaded and held back before it's published.
+  lets a photo be uploaded and held back, and lets the admin hide a published
+  photo and publish it again without deleting it. Hidden photos never appear
+  in public queries.
 - **Generated variants are not DB rows.** They're derived files on disk, named
   by convention from the photo id, regenerable from the original at any time:
   - `derived/{photo_id}_thumb.jpg` (grid thumbnail, ~400px)
@@ -140,8 +144,9 @@ scale.
 
 ```
 Public:
-  GET  /                      gallery home (public albums/photos)
-  GET  /albums/:slug          album view
+  GET  /                      gallery home (all public photos)
+  GET  /photos/:id/thumb      thumbnail (404 if hidden or missing)
+  GET  /photos/:id/web        lightbox size (404 if hidden or missing)
   GET  /contact               contact form
   POST /contact               submit (honeypot field + rate limit by IP)
 
@@ -149,11 +154,26 @@ Admin (session-gated):
   GET  /admin/login, POST /admin/login, POST /admin/logout
   GET  /admin                dashboard
   GET  /admin/photos, POST /admin/photos           list/upload
+  GET  /admin/photos/:id/thumb|web|original   any photo, hidden included
   POST /admin/photos/:id/delete
-  POST /admin/photos/:id/visibility
-  GET  /admin/albums, POST /admin/albums, ...
+  POST /admin/photos/:id/visibility    hide / publish
   GET  /admin/messages         view contact submissions
 ```
+
+## Image serving
+
+The files on the external drive are never exposed by path. The disk layout is
+an implementation detail; URLs use the photo id and go through Go:
+
+- `GET /photos/:id/thumb` and `/web`: look up the row; if it doesn't exist or
+  `is_public = 0`, respond with the same 404 either way (don't reveal that a
+  hidden photo exists). Otherwise stream the derived file.
+- `GET /admin/photos/:id/{thumb,web,original}`: behind the admin auth
+  middleware, serves any photo including hidden ones. Originals are
+  admin-only.
+- Responses for public photos use a short `Cache-Control` max-age (minutes,
+  not days), so a photo that gets hidden stops being served by browser/proxy
+  caches soon after. Admin responses use `Cache-Control: private, no-store`.
 
 ## Deployment (Raspberry Pi)
 
@@ -163,8 +183,8 @@ Admin (session-gated):
 - External drive mounted via `/etc/fstab` using a stable UUID (not `/dev/sda1`);
   the app reads the mount path from config/env and treats "drive not mounted"
   as a startup check, not a silent failure.
-- Caddy: automatic HTTPS if exposed publicly, reverse-proxies `/` to Go, serves
-  `/derived/*` and gated `/originals/*` straight off disk.
+- Caddy: automatic HTTPS if exposed publicly, reverse-proxies everything
+  to Go. It does not serve photo files off disk (see Image serving).
 
 ## Implementation order
 

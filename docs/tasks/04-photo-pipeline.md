@@ -44,9 +44,18 @@ and store everything per the design doc's
    DB row; tolerate already-missing files (log, don't fail the whole
    operation) since manual filesystem cleanup shouldn't desync from the DB.
 7. **Listing/query functions** the gallery and admin packages will call:
-   list public photos (optionally by album) ordered by `sort_order`, list all
-   photos for admin (including non-public), get one by ID.
-8. **Regeneration path**: a function to re-run step 5 from the stored
+   list public photos ordered by `sort_order`, list all photos for admin
+   (including hidden), get one by ID, and set a photo's `is_public` flag
+   (hide / publish).
+8. **Image-serving handlers** (see the design doc's
+   [Image serving](../design.md#image-serving)): `GET /photos/:id/{thumb,web}`
+   returns 404 for a missing *or hidden* photo (identical response for both),
+   otherwise `c.File` on the derived file with a short public `Cache-Control`
+   max-age. `GET /admin/photos/:id/{thumb,web,original}` serves any photo and
+   sits behind the admin middleware (task 03), with `Cache-Control: private,
+   no-store`. Look the file path up from the DB id; never build it from
+   user-supplied path segments.
+9. **Regeneration path**: a function to re-run step 5 from the stored
    original — useful if you change thumb/web target sizes later without
    re-uploading everything.
 
@@ -57,6 +66,10 @@ and store everything per the design doc's
 - A photo with no EXIF data (e.g. a screenshot) uploads successfully with
   EXIF columns left `NULL`, not an error.
 - Deleting a photo removes all three files and the DB row.
+- A hidden photo's `/photos/:id/thumb` and `/web` return 404 (same body as a
+  nonexistent id), including after having been public and fetched before; the
+  same URLs work again once it's published. `/admin/photos/:id/original`
+  returns 401/redirect when not logged in.
 - Thumb and web files are valid, correctly oriented (watch for EXIF
   orientation flag — rotate before resizing if the library doesn't handle it
   automatically) JPEGs at the target sizes.

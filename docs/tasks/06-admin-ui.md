@@ -3,7 +3,7 @@
 ## Goal
 
 Build the admin-only pages for publishing photos and managing the gallery:
-upload, visibility/reordering, albums, and contact messages — htmx-driven
+upload, delete, hide/publish, reordering, and contact messages — htmx-driven
 partial updates, no page-reload-per-action.
 
 ## Dependencies
@@ -28,9 +28,12 @@ without it).
    pipeline from task 04; htmx `hx-post` with `hx-encoding="multipart/form-data"`
    and an `hx-indicator` for upload progress feedback, since a Pi + external
    drive write isn't instant.
-4. **Photo list**: thumbnail grid, each with:
-   - visibility toggle (`hx-post /admin/photos/:id/visibility`, returns the
-     updated row fragment)
+4. **Photo list**: thumbnail grid (images from
+   `/admin/photos/:id/thumb`, so hidden photos still display for the admin),
+   each with:
+   - hide/publish toggle (`hx-post /admin/photos/:id/visibility`, flips
+     `is_public` and returns the updated row fragment; hidden photos are
+     visibly marked in the admin list)
    - delete with a confirm step (`hx-confirm` is built into htmx — use it
      rather than a custom JS `confirm()`)
    - reordering: start with simple up/down buttons posting to
@@ -38,20 +41,18 @@ without it).
      matches the "don't reach for more tooling than the problem needs"
      reasoning behind picking htmx in the first place; revisit only if it's
      genuinely too slow to use.
-5. **Album management**: create/edit/delete, assign a cover photo, toggle
-   public/private — same list+form+htmx-fragment pattern as photos.
-6. **Contact messages** (`GET /admin/messages`): list from
+5. **Contact messages** (`GET /admin/messages`): list from
    `contact.GetMessages`, mark read/archived via `hx-post`.
-7. **CSRF protection**: every state-changing `POST` here needs a CSRF token
+6. **CSRF protection**: every state-changing `POST` here needs a CSRF token
    (session-cookie auth is vulnerable to cross-site request forgery unlike
    token-header auth) — a hidden field in each form/htmx request, validated
    server-side against a value tied to the session.
 
 ## Acceptance criteria
 
-- Can log in, upload a photo, see it in the admin list as private, toggle it
-  public, and see it appear on the live public gallery (task 05) without a
-  full page reload for any of these steps.
+- Can log in, upload a photo, see it in the admin list, hide it and see it vanish
+  from the live public gallery (task 05), publish it again and see it return,
+  without a full page reload for any of these steps.
 - Deleting a photo removes it from both admin and public views.
 - A `POST` to any admin mutation route without a valid CSRF token is
   rejected.

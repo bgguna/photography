@@ -65,12 +65,13 @@ then redeploy as later tasks land.
    ```
    your-domain.example {
        reverse_proxy 127.0.0.1:8080
-       handle_path /derived/* {
-           root * /mnt/photo-drive/derived
-           file_server
-       }
    }
    ```
+   Caddy must **not** serve `/derived/*` or `/originals/*` off disk: that
+   would bypass the `is_public` check and make hidden photos reachable by
+   URL. All image requests go through Go (see the design doc's
+   [Image serving](../design.md#image-serving)). Also make sure no other web
+   server config or directory listing exposes `/mnt/photo-drive`.
    Decide LAN-only vs. public internet first (see below) — it changes this
    block (automatic HTTPS needs a public domain + port 80/443 reachable;
    LAN-only can use Caddy's internal CA or a self-signed cert instead).
@@ -87,8 +88,9 @@ then redeploy as later tasks land.
      cloud storage) — the SQLite DB is regenerable from photo metadata in a
      pinch, the original photo files are not.
 9. **Smoke test after deploy**: health check reachable, login works, upload a
-   test photo end-to-end, confirm it's served from `/derived/*` via Caddy (not
-   proxied through Go), reboot the Pi and confirm the service comes back up on
+   test photo end-to-end, hide it and confirm its `/photos/:id/thumb|web` URLs
+   now return 404 while logged out, publish it and confirm they work again,
+   reboot the Pi and confirm the service comes back up on
    its own.
 
 ## Acceptance criteria
@@ -97,8 +99,10 @@ then redeploy as later tasks land.
   no manual steps.
 - Killing the process (`systemctl kill photography`) results in automatic
   restart.
-- Photos load over HTTPS (or your chosen LAN scheme) with image requests
-  served directly by Caddy, not proxied through the Go process.
+- Photos load over HTTPS (or your chosen LAN scheme), served by the Go process
+  through Caddy's reverse proxy.
+- Hidden photos are unreachable by URL: `/photos/:id/*` returns 404, and
+  `/derived/...`, `/originals/...` paths are not served by anything.
 - A simulated drive-unmounted state (unplug/unmount in a test) prevents the
   service from starting, with a clear log message, rather than starting and
   failing confusingly on first upload.
