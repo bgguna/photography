@@ -1,0 +1,9 @@
+mode: set
+github.com/bgguna/photography/internal/config/config.go:19.30,29.32 2 1
+github.com/bgguna/photography/internal/config/config.go:29.32,31.3 1 1
+github.com/bgguna/photography/internal/config/config.go:33.2,33.57 1 1
+github.com/bgguna/photography/internal/config/config.go:33.57,35.3 1 1
+github.com/bgguna/photography/internal/config/config.go:37.2,37.17 1 1
+github.com/bgguna/photography/internal/config/config.go:41.44,42.38 1 1
+github.com/bgguna/photography/internal/config/config.go:42.38,44.3 1 1
+github.com/bgguna/photography/internal/config/config.go:45.2,45.19 1 1
