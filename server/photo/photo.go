@@ -36,10 +36,50 @@ type Photo struct {
 	ISO              *int
 	Aperture         *float64
 	ShutterSpeed     *string
+	FocalLength      *float64
 
 	// Admin fields
 	SortOrder int
 	IsPublic  int
+}
+
+// Metadata is the display-ready camera settings shown alongside a photo.
+// Fields without EXIF data are empty strings.
+type Metadata struct {
+	Camera       string
+	Date         string
+	Aperture     string
+	ShutterSpeed string
+	ISO          string
+	FocalLength  string
+}
+
+// Metadata formats the photo's EXIF fields for display.
+func (p Photo) Metadata() Metadata {
+	var m Metadata
+	if p.CameraModel != nil {
+		m.Camera = *p.CameraModel
+	} else if p.CameraMake != nil {
+		m.Camera = *p.CameraMake
+	}
+	if p.DatetimeOriginal != nil {
+		if t, err := time.Parse(time.RFC3339, *p.DatetimeOriginal); err == nil {
+			m.Date = t.Format("2 Jan 2006")
+		}
+	}
+	if p.Aperture != nil {
+		m.Aperture = fmt.Sprintf("f/%.1f", *p.Aperture)
+	}
+	if p.ShutterSpeed != nil {
+		m.ShutterSpeed = *p.ShutterSpeed + " s"
+	}
+	if p.ISO != nil {
+		m.ISO = fmt.Sprintf("ISO %d", *p.ISO)
+	}
+	if p.FocalLength != nil {
+		m.FocalLength = fmt.Sprintf("%.0f mm", *p.FocalLength)
+	}
+	return m
 }
 
 // PhotoService handles photo operations.
@@ -126,6 +166,7 @@ func (ps *PhotoService) UploadPhoto(file io.Reader, fileHeader *multipart.FileHe
 		photo.ISO = exifData.ISO
 		photo.Aperture = exifData.Aperture
 		photo.ShutterSpeed = exifData.ShutterSpeed
+		photo.FocalLength = exifData.FocalLength
 
 		if err := ps.updatePhotoEXIF(photo); err != nil {
 			log.Warn().Err(err).Msgf("Failed to update EXIF for photo %d", photo.ID)
@@ -176,20 +217,20 @@ func (ps *PhotoService) DeletePhoto(photoID int) error {
 func (ps *PhotoService) GetPhoto(photoID int) (*Photo, error) {
 	var photo Photo
 	var dateOrig, make, model, speed sql.NullString
-	var gpsLat, gpsLng, ap sql.NullFloat64
+	var gpsLat, gpsLng, ap, fl sql.NullFloat64
 	var iso sql.NullInt64
 
 	err := ps.db.QueryRow(`
 		SELECT id, uploader_user_id, original_mime_type, original_filename,
 		       original_path, created_at, updated_at,
 		       datetime_original, camera_make, camera_model,
-		       gps_lat, gps_lng, iso, aperture, shutter_speed,
+		       gps_lat, gps_lng, iso, aperture, shutter_speed, focal_length,
 		       sort_order, is_public
 		FROM photos WHERE id = ?
 	`, photoID).Scan(
 		&photo.ID, &photo.UploaderUserID, &photo.OriginalMIME, &photo.OriginalFilename,
 		&photo.OriginalPath, &photo.CreatedAt, &photo.UpdatedAt,
-		&dateOrig, &make, &model, &gpsLat, &gpsLng, &iso, &ap, &speed,
+		&dateOrig, &make, &model, &gpsLat, &gpsLng, &iso, &ap, &speed, &fl,
 		&photo.SortOrder, &photo.IsPublic,
 	)
 
@@ -225,6 +266,9 @@ func (ps *PhotoService) GetPhoto(photoID int) (*Photo, error) {
 	}
 	if speed.Valid {
 		photo.ShutterSpeed = &speed.String
+	}
+	if fl.Valid {
+		photo.FocalLength = &fl.Float64
 	}
 
 	return &photo, nil
@@ -345,11 +389,12 @@ func (ps *PhotoService) updatePhotoEXIF(photo *Photo) error {
 	_, err := ps.db.Exec(`
 		UPDATE photos
 		SET datetime_original = ?, camera_make = ?, camera_model = ?,
-		    gps_lat = ?, gps_lng = ?, iso = ?, aperture = ?, shutter_speed = ?
+		    gps_lat = ?, gps_lng = ?, iso = ?, aperture = ?, shutter_speed = ?,
+		    focal_length = ?
 		WHERE id = ?
 	`, photo.DatetimeOriginal, photo.CameraMake, photo.CameraModel,
 		photo.GPSLat, photo.GPSLng, photo.ISO, photo.Aperture, photo.ShutterSpeed,
-		photo.ID)
+		photo.FocalLength, photo.ID)
 
 	return err
 }
@@ -374,7 +419,7 @@ func (ps *PhotoService) listPhotos(whereClause string) ([]Photo, error) {
 		SELECT id, uploader_user_id, original_mime_type, original_filename,
 		       original_path, created_at, updated_at,
 		       datetime_original, camera_make, camera_model,
-		       gps_lat, gps_lng, iso, aperture, shutter_speed,
+		       gps_lat, gps_lng, iso, aperture, shutter_speed, focal_length,
 		       sort_order, is_public
 		FROM photos
 	`
@@ -393,13 +438,13 @@ func (ps *PhotoService) listPhotos(whereClause string) ([]Photo, error) {
 	for rows.Next() {
 		var photo Photo
 		var dateOrig, make, model, speed sql.NullString
-		var gpsLat, gpsLng, ap sql.NullFloat64
+		var gpsLat, gpsLng, ap, fl sql.NullFloat64
 		var iso sql.NullInt64
 
 		if err := rows.Scan(
 			&photo.ID, &photo.UploaderUserID, &photo.OriginalMIME, &photo.OriginalFilename,
 			&photo.OriginalPath, &photo.CreatedAt, &photo.UpdatedAt,
-			&dateOrig, &make, &model, &gpsLat, &gpsLng, &iso, &ap, &speed,
+			&dateOrig, &make, &model, &gpsLat, &gpsLng, &iso, &ap, &speed, &fl,
 			&photo.SortOrder, &photo.IsPublic,
 		); err != nil {
 			return nil, err
@@ -430,6 +475,9 @@ func (ps *PhotoService) listPhotos(whereClause string) ([]Photo, error) {
 		}
 		if speed.Valid {
 			photo.ShutterSpeed = &speed.String
+		}
+		if fl.Valid {
+			photo.FocalLength = &fl.Float64
 		}
 
 		photos = append(photos, photo)
@@ -520,6 +568,7 @@ type EXIFData struct {
 	ISO              *int
 	Aperture         *float64
 	ShutterSpeed     *string
+	FocalLength      *float64
 }
 
 // extractEXIF extracts EXIF data from image bytes.
@@ -578,6 +627,14 @@ func extractEXIF(data []byte) *EXIFData {
 		if r, err := ss.Rat(0); err == nil {
 			str := r.String()
 			exifData.ShutterSpeed = &str
+		}
+	}
+
+	// Focal Length
+	if fl, err := x.Get(exif.FocalLength); err == nil && fl != nil {
+		if r, err := fl.Rat(0); err == nil {
+			val, _ := r.Float64()
+			exifData.FocalLength = &val
 		}
 	}
 

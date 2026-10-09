@@ -34,11 +34,22 @@
             {{end}}
 
             {{range $index, $photo := .Photos}}
-            <img x-show="currentIndex === {{$index}}"
-                 src="/photos/{{$photo.ID}}/web"
-                 alt="Photo {{$index}}"
-                 class="lightbox-image"
-                 style="display: none;">
+            {{$m := $photo.Metadata}}
+            <figure x-show="currentIndex === {{$index}}" class="lightbox-item" style="display: none;">
+                <img src="/photos/{{$photo.ID}}/web"
+                     alt="Photo {{$index}}"
+                     class="lightbox-image">
+                {{if or $m.Camera $m.Date $m.Aperture $m.ShutterSpeed $m.ISO $m.FocalLength}}
+                <dl class="lightbox-meta">
+                    {{with $m.Camera}}<div><dt>Camera</dt><dd>{{.}}</dd></div>{{end}}
+                    {{with $m.FocalLength}}<div><dt>Focal length</dt><dd>{{.}}</dd></div>{{end}}
+                    {{with $m.Aperture}}<div><dt>Aperture</dt><dd>{{.}}</dd></div>{{end}}
+                    {{with $m.ShutterSpeed}}<div><dt>Shutter</dt><dd>{{.}}</dd></div>{{end}}
+                    {{with $m.ISO}}<div><dt>ISO</dt><dd>{{.}}</dd></div>{{end}}
+                    {{with $m.Date}}<div><dt>Taken</dt><dd>{{.}}</dd></div>{{end}}
+                </dl>
+                {{end}}
+            </figure>
             {{end}}
         </div>
     {{end}}

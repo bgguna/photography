@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/bgguna/photography/internal/db"
@@ -263,4 +264,34 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestHomePage_ShowsPhotoMetadata(t *testing.T) {
+	tmpDb := openTestDB(t)
+	defer tmpDb.Close()
+
+	if _, err := tmpDb.Exec("INSERT INTO users (email, password_hash, role) VALUES ('a@b.c', 'h', 'admin')"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := tmpDb.Exec(`
+		INSERT INTO photos (uploader_user_id, original_mime_type, original_filename, original_path,
+		                    datetime_original, camera_model, iso, aperture, shutter_speed, focal_length, is_public)
+		VALUES (1, 'image/jpeg', 'x.jpg', '/none', '2024-05-06T07:08:09Z', 'EOS R', 400, 2.8, '1/250', 50, 1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	router := setupRouter(tmpDb)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET / = %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{"EOS R", "f/2.8", "1/250 s", "ISO 400", "50 mm", "6 May 2024"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home page missing %q", want)
+		}
+	}
 }

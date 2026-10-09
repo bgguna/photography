@@ -39,6 +39,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		iso INTEGER NULL,
 		aperture REAL NULL,
 		shutter_speed TEXT NULL,
+		focal_length REAL NULL,
 		sort_order INTEGER NOT NULL DEFAULT 0,
 		is_public INTEGER NOT NULL DEFAULT 1 CHECK (is_public IN (0,1)),
 		FOREIGN KEY (uploader_user_id) REFERENCES users(id)

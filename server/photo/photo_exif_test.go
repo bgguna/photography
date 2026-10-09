@@ -45,6 +45,7 @@ func buildEXIFJPEG() []byte {
 		{0x829A, 5, 1, rationals([2]uint32{1, 250}), -1},
 		{0x829D, 5, 1, rationals([2]uint32{28, 10}), -1},
 		{0x8827, 3, 1, short(400), -1},
+		{0x920A, 5, 1, rationals([2]uint32{50, 1}), -1},
 		{0x9003, 2, 20, ascii("2024:05:06 07:08:09"), -1},
 	}
 	gpsIFD := []ifdEntry{
@@ -128,6 +129,9 @@ func TestExtractEXIF_Full(t *testing.T) {
 	if e.ShutterSpeed == nil || *e.ShutterSpeed != "1/250" {
 		t.Errorf("shutter = %v", e.ShutterSpeed)
 	}
+	if e.FocalLength == nil || *e.FocalLength != 50 {
+		t.Errorf("focal length = %v", e.FocalLength)
+	}
 	if e.GPSLat == nil || *e.GPSLat != 45.5 {
 		t.Errorf("lat = %v", e.GPSLat)
 	}
@@ -153,7 +157,7 @@ func TestUploadPhoto_WithEXIFRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.CameraMake == nil || got.CameraModel == nil || got.DatetimeOriginal == nil ||
-		got.GPSLat == nil || got.GPSLng == nil || got.ISO == nil || got.Aperture == nil || got.ShutterSpeed == nil {
+		got.GPSLat == nil || got.GPSLng == nil || got.ISO == nil || got.Aperture == nil || got.ShutterSpeed == nil || got.FocalLength == nil {
 		t.Errorf("EXIF fields not persisted: %+v", got)
 	}
 	all, err := ps.ListAllPhotos()
@@ -253,5 +257,44 @@ func TestGenerateDerivedSizes_Errors(t *testing.T) {
 	}
 	if err := ps.saveJPEG(filepath.Join(blocker, "x.jpg"), nil); err == nil {
 		t.Error("expected create error")
+	}
+}
+
+func TestPhotoMetadata(t *testing.T) {
+	str := func(s string) *string { return &s }
+	f := func(v float64) *float64 { return &v }
+	i := func(v int) *int { return &v }
+
+	full := Photo{
+		DatetimeOriginal: str("2024-05-06T07:08:09Z"),
+		CameraMake:       str("Canon"),
+		CameraModel:      str("EOS R"),
+		ISO:              i(400),
+		Aperture:         f(2.8),
+		ShutterSpeed:     str("1/250"),
+		FocalLength:      f(49.6),
+	}
+	want := Metadata{
+		Camera:       "EOS R",
+		Date:         "6 May 2024",
+		Aperture:     "f/2.8",
+		ShutterSpeed: "1/250 s",
+		ISO:          "ISO 400",
+		FocalLength:  "50 mm",
+	}
+	if got := full.Metadata(); got != want {
+		t.Errorf("Metadata() = %+v, want %+v", got, want)
+	}
+
+	// Make is used when the model is missing; empty photo yields empty fields.
+	if got := (Photo{CameraMake: str("Fuji")}).Metadata(); got.Camera != "Fuji" {
+		t.Errorf("camera fallback = %q", got.Camera)
+	}
+	if got := (Photo{}).Metadata(); got != (Metadata{}) {
+		t.Errorf("empty Metadata() = %+v", got)
+	}
+	// Unparseable date is dropped rather than shown raw.
+	if got := (Photo{DatetimeOriginal: str("not a date")}).Metadata(); got.Date != "" {
+		t.Errorf("bad date = %q", got.Date)
 	}
 }
