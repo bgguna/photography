@@ -2,3 +2,9 @@
 **/bin
 .env*
 *.sqlite
+
+server/photography
+*.out
+coverage*.html
+*_coverage.html
+server/report.html
