@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +21,8 @@ import (
 	"github.com/bgguna/photography/internal/auth"
 	"github.com/bgguna/photography/internal/config"
 	"github.com/bgguna/photography/internal/db"
+	"github.com/bgguna/photography/internal/gallery"
+	"github.com/bgguna/photography/photo"
 )
 
 func init() {
@@ -137,6 +142,16 @@ func setupRouter(database *sql.DB) *gin.Engine {
 	loginLimiter := auth.NewRateLimiter()
 	isSecure := os.Getenv("MODE_ENV") == "production"
 
+	// Create photo and gallery services
+	photoSvc := photo.NewPhotoService(database, os.Getenv("PHOTO_STORAGE_PATH"))
+	gal := gallery.NewGallery(photoSvc)
+
+	// Parse templates
+	tmpl, err := template.ParseGlob("./internal/web/templates/*.html")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse templates")
+	}
+
 	// Static files
 	router.Static("/static", "./internal/web/static")
 
@@ -147,15 +162,62 @@ func setupRouter(database *sql.DB) *gin.Engine {
 
 	// Public routes
 	router.GET("/", func(c *gin.Context) {
-		c.String(http.StatusNotImplemented, "TODO: gallery home")
+		photos, err := gal.GetPublicPhotos()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get public photos")
+			c.String(http.StatusInternalServerError, "Error loading photos")
+			return
+		}
+
+		photosJSON, _ := json.Marshal(photos)
+		data := gin.H{
+			"Photos":      photos,
+			"PhotosJSON":  string(photosJSON),
+		}
+
+		if tmpl != nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			if err := tmpl.ExecuteTemplate(c.Writer, "layout.html", data); err != nil {
+				log.Error().Err(err).Msg("Failed to execute template")
+				c.String(http.StatusInternalServerError, "Failed to render page")
+			}
+		} else {
+			c.String(http.StatusInternalServerError, "Templates not loaded")
+		}
 	})
 
 	router.GET("/photos/:id/thumb", func(c *gin.Context) {
-		c.String(http.StatusNotImplemented, "TODO: photo thumbnail")
+		photoID, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		path, err := photoSvc.GetPhotoFile(photoID, "thumb")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		c.Header("Cache-Control", "public, max-age=300")
+		c.File(path)
 	})
 
 	router.GET("/photos/:id/web", func(c *gin.Context) {
-		c.String(http.StatusNotImplemented, "TODO: photo web size")
+		photoID, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		path, err := photoSvc.GetPhotoFile(photoID, "web")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		c.Header("Cache-Control", "public, max-age=300")
+		c.File(path)
 	})
 
 	router.GET("/contact", func(c *gin.Context) {
@@ -240,15 +302,54 @@ func setupRouter(database *sql.DB) *gin.Engine {
 			})
 
 			protected.GET("/photos/:id/thumb", func(c *gin.Context) {
-				c.String(http.StatusNotImplemented, "TODO: admin photo thumbnail")
+				photoID, err := strconv.Atoi(c.Param("id"))
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				path, err := photoSvc.GetAdminPhotoFile(photoID, "thumb")
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				c.Header("Cache-Control", "private, no-store")
+				c.File(path)
 			})
 
 			protected.GET("/photos/:id/web", func(c *gin.Context) {
-				c.String(http.StatusNotImplemented, "TODO: admin photo web size")
+				photoID, err := strconv.Atoi(c.Param("id"))
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				path, err := photoSvc.GetAdminPhotoFile(photoID, "web")
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				c.Header("Cache-Control", "private, no-store")
+				c.File(path)
 			})
 
 			protected.GET("/photos/:id/original", func(c *gin.Context) {
-				c.String(http.StatusNotImplemented, "TODO: admin photo original")
+				photoID, err := strconv.Atoi(c.Param("id"))
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				path, err := photoSvc.GetAdminPhotoFile(photoID, "original")
+				if err != nil {
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+
+				c.Header("Cache-Control", "private, no-store")
+				c.File(path)
 			})
 
 			protected.POST("/photos/:id/delete", func(c *gin.Context) {

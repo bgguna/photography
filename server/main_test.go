@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,26 @@ import (
 
 	"github.com/bgguna/photography/internal/db"
 )
+
+// openTestDB opens an in-memory database and initializes the schema.
+func openTestDB(t *testing.T) *sql.DB {
+	tmpDb, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+
+	// Read and execute schema
+	schemaBytes, err := ioutil.ReadFile("../db/schema.sql")
+	if err != nil {
+		t.Fatalf("Failed to read schema: %v", err)
+	}
+	if _, err := tmpDb.Exec(string(schemaBytes)); err != nil {
+		t.Fatalf("Failed to execute schema: %v", err)
+	}
+
+	return tmpDb
+}
+
 
 func TestVerifyStoragePath_ValidPath(t *testing.T) {
 	// Create a temporary directory
@@ -88,11 +109,7 @@ func TestVerifyStoragePath_NotWritable(t *testing.T) {
 }
 
 func TestSetupRouter_HealthCheck(t *testing.T) {
-	// Create an in-memory database
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
@@ -111,10 +128,7 @@ func TestSetupRouter_HealthCheck(t *testing.T) {
 }
 
 func TestSetupRouter_StaticFilesRoute(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
@@ -132,23 +146,23 @@ func TestSetupRouter_StaticFilesRoute(t *testing.T) {
 }
 
 func TestSetupRouter_PublicRoutes(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
 
 	routes := []struct {
-		method string
-		path   string
+		method   string
+		path     string
+		minCode  int
+		maxCode  int
+		name     string
 	}{
-		{"GET", "/"},
-		{"GET", "/photos/1/thumb"},
-		{"GET", "/photos/1/web"},
-		{"GET", "/contact"},
-		{"POST", "/contact"},
+		{"GET", "/", 200, 299, "home page"},
+		{"GET", "/photos/1/thumb", 404, 404, "missing photo thumbnail"},
+		{"GET", "/photos/1/web", 404, 404, "missing photo web"},
+		{"GET", "/contact", http.StatusNotImplemented, http.StatusNotImplemented, "contact form"},
+		{"POST", "/contact", http.StatusNotImplemented, http.StatusNotImplemented, "contact form submit"},
 	}
 
 	for _, route := range routes {
@@ -156,17 +170,14 @@ func TestSetupRouter_PublicRoutes(t *testing.T) {
 		req, _ := http.NewRequest(route.method, route.path, nil)
 		router.ServeHTTP(w, req)
 
-		if w.Code != http.StatusNotImplemented {
-			t.Errorf("%s %s returned %d, want %d", route.method, route.path, w.Code, http.StatusNotImplemented)
+		if w.Code < route.minCode || w.Code > route.maxCode {
+			t.Errorf("%s %s (%s) returned %d, want %d-%d", route.method, route.path, route.name, w.Code, route.minCode, route.maxCode)
 		}
 	}
 }
 
 func TestSetupRouter_AdminRoutes(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
@@ -216,10 +227,7 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 }
 
 func TestLoggingMiddleware(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
@@ -237,10 +245,7 @@ func TestLoggingMiddleware(t *testing.T) {
 func TestSetupRouter_Recovery(t *testing.T) {
 	// The recovery middleware is tested implicitly by running all other tests
 	// without panicking. The gin.Recovery() middleware is built-in and well-tested.
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
+	tmpDb := openTestDB(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
@@ -260,3 +265,4 @@ func contains(s, substr string) bool {
 	}
 	return false
 }
+

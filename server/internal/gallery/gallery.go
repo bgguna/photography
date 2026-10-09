@@ -1,7 +1,6 @@
 package gallery
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/bgguna/photography/photo"

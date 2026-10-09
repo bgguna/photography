@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,25 @@ import (
 	"github.com/bgguna/photography/internal/config"
 	"github.com/bgguna/photography/internal/db"
 )
+
+// openTestDB opens an in-memory database and initializes the schema.
+func openTestDB_Integration(t *testing.T) *sql.DB {
+	tmpDb, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+
+	// Read and execute schema
+	schemaBytes, err := ioutil.ReadFile("../db/schema.sql")
+	if err != nil {
+		t.Fatalf("Failed to read schema: %v", err)
+	}
+	if _, err := tmpDb.Exec(string(schemaBytes)); err != nil {
+		t.Fatalf("Failed to execute schema: %v", err)
+	}
+
+	return tmpDb
+}
 
 // TestIntegration_ConfigAndRouter tests the config loading and router setup together.
 func TestIntegration_ConfigAndRouter(t *testing.T) {
@@ -54,6 +74,17 @@ func TestIntegration_ConfigAndRouter(t *testing.T) {
 	}
 	defer database.Close()
 
+	// Initialize schema for in-memory database
+	if cfg.DBPath == ":memory:" {
+		schemaBytes, err := ioutil.ReadFile("../db/schema.sql")
+		if err != nil {
+			t.Fatalf("Failed to read schema: %v", err)
+		}
+		if _, err := database.Exec(string(schemaBytes)); err != nil {
+			t.Fatalf("Failed to execute schema: %v", err)
+		}
+	}
+
 	// Setup router
 	router := setupRouter(database)
 
@@ -64,7 +95,7 @@ func TestIntegration_ConfigAndRouter(t *testing.T) {
 		expect int
 	}{
 		{"GET", "/healthz", http.StatusOK},
-		{"GET", "/", http.StatusNotImplemented},
+		{"GET", "/", http.StatusOK},
 		{"GET", "/admin/login", http.StatusNotImplemented},
 	}
 
@@ -134,24 +165,22 @@ func TestIntegration_RouterWithRealDatabase(t *testing.T) {
 
 // TestIntegration_AllPublicRoutes ensures all public routes are accessible.
 func TestIntegration_AllPublicRoutes(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open database: %v", err)
-	}
+	tmpDb := openTestDB_Integration(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
 
 	publicRoutes := []struct {
-		method string
-		path   string
+		method   string
+		path     string
+		allowNot404 bool
 	}{
-		{"GET", "/"},
-		{"GET", "/photos/123/thumb"},
-		{"GET", "/photos/123/web"},
-		{"GET", "/contact"},
-		{"POST", "/contact"},
-		{"GET", "/healthz"},
+		{"GET", "/", false},
+		{"GET", "/photos/123/thumb", true},
+		{"GET", "/photos/123/web", true},
+		{"GET", "/contact", false},
+		{"POST", "/contact", false},
+		{"GET", "/healthz", false},
 	}
 
 	for _, route := range publicRoutes {
@@ -159,8 +188,8 @@ func TestIntegration_AllPublicRoutes(t *testing.T) {
 		req, _ := http.NewRequest(route.method, route.path, nil)
 		router.ServeHTTP(w, req)
 
-		// Should not return 404 for route not found
-		if w.Code == http.StatusNotFound {
+		// Should not return 404 for route not found (unless it's an expected resource-not-found response)
+		if w.Code == http.StatusNotFound && !route.allowNot404 {
 			t.Errorf("%s %s: route not registered (got 404)", route.method, route.path)
 		}
 	}
@@ -168,10 +197,7 @@ func TestIntegration_AllPublicRoutes(t *testing.T) {
 
 // TestIntegration_AllAdminRoutes ensures all admin routes are accessible.
 func TestIntegration_AllAdminRoutes(t *testing.T) {
-	tmpDb, err := db.Open(":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open database: %v", err)
-	}
+	tmpDb := openTestDB_Integration(t)
 	defer tmpDb.Close()
 
 	router := setupRouter(tmpDb)
