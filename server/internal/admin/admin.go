@@ -50,11 +50,11 @@ func (as *AdminService) GetMessages() ([]ContactMessage, error) {
 
 	var messages []ContactMessage
 	for rows.Next() {
-		var msg ContactMessage
-		if err := rows.Scan(&msg.ID, &msg.Name, &msg.Email, &msg.Message, &msg.CreatedAt, &msg.Status); err != nil {
-			return nil, fmt.Errorf("failed to scan message: %w", err)
+		msg, err := scanMessage(rows)
+		if err != nil {
+			return nil, err
 		}
-		messages = append(messages, msg)
+		messages = append(messages, *msg)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -115,14 +115,30 @@ func (as *AdminService) DeleteMessage(messageID int) error {
 type ContactMessage struct {
 	ID        int
 	Name      string
-	Email     *string
+	Email     string
 	Message   string
 	CreatedAt string
 	Status    string
 }
 
-// CreatedAtFormatted returns a formatted created_at timestamp.
-func (cm *ContactMessage) CreatedAtFormatted() string {
-	// Simple date formatting - in production, you'd parse and format properly
-	return cm.CreatedAt
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanMessage(r rowScanner) (*ContactMessage, error) {
+	var msg ContactMessage
+	var email sql.NullString
+	if err := r.Scan(&msg.ID, &msg.Name, &email, &msg.Message, &msg.CreatedAt, &msg.Status); err != nil {
+		return nil, fmt.Errorf("failed to scan message: %w", err)
+	}
+	msg.Email = email.String
+	return &msg, nil
+}
+
+// GetMessage returns a single contact message.
+func (as *AdminService) GetMessage(messageID int) (*ContactMessage, error) {
+	return scanMessage(as.db.QueryRow(
+		"SELECT id, name, email, message, created_at, status FROM contact_messages WHERE id = ?",
+		messageID,
+	))
 }

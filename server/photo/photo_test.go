@@ -508,3 +508,77 @@ func TestGetFileExtension(t *testing.T) {
 		}
 	}
 }
+
+func TestMovePhoto(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+	storage := setupTestStorage(t)
+	defer os.RemoveAll(storage)
+	ps := NewPhotoService(database, storage)
+
+	var ids []int
+	for i := 0; i < 3; i++ {
+		fh, f := createTestMultipartFile(t, "t.jpg", createTestImage(500, 400))
+		p, err := ps.UploadPhoto(f, fh, 1)
+		f.Close()
+		if err != nil {
+			t.Fatalf("upload: %v", err)
+		}
+		ids = append(ids, p.ID)
+	}
+
+	order := func() []int {
+		all, err := ps.ListAllPhotos()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []int
+		for _, p := range all {
+			out = append(out, p.ID)
+		}
+		return out
+	}
+	eq := func(a, b []int) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	if got := order(); !eq(got, ids) {
+		t.Fatalf("new uploads should append: got %v want %v", got, ids)
+	}
+
+	if err := ps.MovePhoto(ids[2], "up"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := order(), []int{ids[0], ids[2], ids[1]}; !eq(got, want) {
+		t.Errorf("after up: got %v want %v", got, want)
+	}
+
+	if err := ps.MovePhoto(ids[0], "down"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := order(), []int{ids[2], ids[0], ids[1]}; !eq(got, want) {
+		t.Errorf("after down: got %v want %v", got, want)
+	}
+
+	// Past the ends is a no-op
+	ps.MovePhoto(ids[2], "up")
+	ps.MovePhoto(ids[1], "down")
+	if got, want := order(), []int{ids[2], ids[0], ids[1]}; !eq(got, want) {
+		t.Errorf("edge moves should be no-ops: got %v want %v", got, want)
+	}
+
+	if err := ps.MovePhoto(ids[0], "sideways"); err == nil {
+		t.Error("expected error for invalid direction")
+	}
+	if err := ps.MovePhoto(9999, "up"); err == nil {
+		t.Error("expected error for unknown photo")
+	}
+}

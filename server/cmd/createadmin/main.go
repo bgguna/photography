@@ -14,11 +14,12 @@ import (
 
 func main() {
 	// Load .env file
-	_ = godotenv.Load("../../.env")
+	_ = godotenv.Load("../.env")
 
 	email := flag.String("email", "", "Admin email address")
 	password := flag.String("password", "", "Admin password")
-	dbPath := flag.String("db", "../../db/gallery.sqlite", "Path to database")
+	dbPath := flag.String("db", "../db/gallery.sqlite", "Path to database")
+	schemaPath := flag.String("schema", "../db/schema.sql", "Path to schema.sql")
 	flag.Parse()
 
 	// Validate inputs
@@ -36,18 +37,13 @@ func main() {
 	}
 	defer database.Close()
 
-	// Create schema if needed
-	schema := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY,
-		email TEXT NOT NULL UNIQUE,
-		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL,
-		created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-	);
-	`
-	if _, err := database.Exec(schema); err != nil {
-		log.Fatalf("Failed to create users table: %v", err)
+	// Apply the full schema (idempotent: every statement is IF NOT EXISTS)
+	schema, err := os.ReadFile(*schemaPath)
+	if err != nil {
+		log.Fatalf("Failed to read schema %s: %v", *schemaPath, err)
+	}
+	if _, err := database.Exec(string(schema)); err != nil {
+		log.Fatalf("Failed to apply schema: %v", err)
 	}
 
 	// Create auth service

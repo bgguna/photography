@@ -30,7 +30,6 @@ func openTestDB(t *testing.T) *sql.DB {
 	return tmpDb
 }
 
-
 func TestVerifyStoragePath_ValidPath(t *testing.T) {
 	// Create a temporary directory
 	tmpDir, err := ioutil.TempDir("", "storage-test-")
@@ -152,11 +151,11 @@ func TestSetupRouter_PublicRoutes(t *testing.T) {
 	router := setupRouter(tmpDb)
 
 	routes := []struct {
-		method   string
-		path     string
-		minCode  int
-		maxCode  int
-		name     string
+		method  string
+		path    string
+		minCode int
+		maxCode int
+		name    string
 	}{
 		{"GET", "/", 200, 299, "home page"},
 		{"GET", "/photos/1/thumb", 404, 404, "missing photo thumbnail"},
@@ -265,4 +264,3 @@ func contains(s, substr string) bool {
 	}
 	return false
 }
-

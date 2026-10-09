@@ -1,352 +1,129 @@
-{{define "admin_layout"}}
-<!DOCTYPE html>
+{{define "admin_layout"}}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{block "admin_title" .}}Admin — Photography{{end}}</title>
+    <title>Admin — Photography</title>
     <style>
         :root {
-            --primary-bg: #ffffff;
-            --primary-text: #1a1a1a;
-            --border-color: #e0e0e0;
-            --hover-bg: #f5f5f5;
-            --danger-color: #d32f2f;
-            --success-color: #388e3c;
+            --bg: #ffffff;
+            --text: #1a1a1a;
+            --muted: #666666;
+            --border: #e0e0e0;
+            --card: #f5f5f5;
+            --primary: #1976d2;
+            --danger: #d32f2f;
+            --success: #388e3c;
         }
-
         @media (prefers-color-scheme: dark) {
-            :root:not([data-theme="light"]) {
-                --primary-bg: #1a1a1a;
-                --primary-text: #ffffff;
-                --border-color: #333333;
-                --hover-bg: #2a2a2a;
+            :root {
+                --bg: #1a1a1a;
+                --text: #ffffff;
+                --muted: #aaaaaa;
+                --border: #333333;
+                --card: #2a2a2a;
             }
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: var(--primary-bg);
-            color: var(--primary-text);
+            background: var(--bg);
+            color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 16px;
             line-height: 1.6;
         }
-
-        header {
-            padding: 1.5rem 1rem;
-            border-bottom: 1px solid var(--border-color);
-            background-color: var(--primary-bg);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        header h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        nav {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-
-        nav a {
-            color: var(--primary-text);
-            text-decoration: none;
-            transition: opacity 0.2s;
-        }
-
-        nav a:hover {
-            opacity: 0.7;
-        }
-
-        nav a.active {
-            font-weight: 600;
-            border-bottom: 2px solid #1976d2;
-            padding-bottom: 0.5rem;
-        }
-
-        main {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem 1rem;
-            color: #666;
-            font-size: 0.9rem;
-            border-top: 1px solid var(--border-color);
-            margin-top: 3rem;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        header { padding: 1rem; border-bottom: 1px solid var(--border); }
+        header h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+        nav { display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center; }
+        nav a { color: var(--text); text-decoration: none; padding-bottom: 2px; }
+        nav a.active { font-weight: 600; border-bottom: 2px solid var(--primary); }
+        nav form { margin-left: auto; }
+        main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+        h2 { margin-bottom: 1rem; }
+        .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
 
         .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: background-color 0.2s;
+            display: inline-block; padding: 0.5rem 1rem; border: none; border-radius: 4px;
+            font-size: 0.9rem; cursor: pointer; text-decoration: none; color: #fff; background: #757575;
         }
+        .btn:hover { filter: brightness(0.9); }
+        .btn-primary { background: var(--primary); }
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
-        .btn-primary {
-            background-color: #1976d2;
-            color: white;
-        }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat { text-align: center; }
+        .stat .num { font-size: 3rem; font-weight: 600; }
+        .text-danger { color: var(--danger); }
+        .text-success { color: var(--success); }
+        .stat .label { color: var(--muted); margin-bottom: 1rem; }
 
-        .btn-primary:hover {
-            background-color: #1565c0;
-        }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .photo-grid .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 2rem; }
+        .photo-item { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--card); }
+        .photo-item .thumb { position: relative; aspect-ratio: 1; }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-item.is-hidden img { opacity: 0.4; }
+        .photo-item.is-hidden { border-style: dashed; }
+        .badge { position: absolute; top: 0.5rem; left: 0.5rem; background: var(--danger); color: #fff; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 3px; }
+        .badge-new { background: var(--primary); position: static; }
+        .photo-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; padding: 0.5rem; }
 
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
+        input[type="file"] { max-width: 100%; margin-right: 0.75rem; }
+        .upload-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+        .htmx-indicator { display: none; align-items: center; gap: 0.5rem; color: var(--muted); }
+        .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
+        .spinner { width: 18px; height: 18px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .btn-danger:hover {
-            background-color: #c62828;
-        }
+        .flash { padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 4px; background: rgba(211, 47, 47, 0.12); color: var(--danger); }
 
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background-color: #2e7d32;
-        }
-
-        .btn-secondary {
-            background-color: #757575;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #616161;
-        }
-
-        .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin: 2rem 0;
-        }
-
-        .photo-item {
-            position: relative;
-            overflow: hidden;
-            background-color: var(--hover-bg);
-            border-radius: 4px;
-            aspect-ratio: 1;
-        }
-
-        .photo-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .photo-item.hidden {
-            opacity: 0.5;
-            border: 2px dashed var(--border-color);
-        }
-
-        .photo-item.hidden::after {
-            content: "HIDDEN";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--danger-color);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.8rem;
-        }
-
-        .photo-actions {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 0.75rem;
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .photo-item:hover .photo-actions {
-            opacity: 1;
-        }
-
-        .photo-actions button {
-            flex: 1;
-            padding: 0.5rem;
-            border: none;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            color: white;
-            transition: background-color 0.2s;
-        }
-
-        .photo-actions .btn-danger {
-            background-color: var(--danger-color);
-        }
-
-        .photo-actions .btn-success {
-            background-color: var(--success-color);
-        }
-
-        .photo-actions .btn-secondary {
-            background-color: #757575;
-        }
-
-        .message-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .message-item {
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 1rem;
-            background-color: var(--hover-bg);
-        }
-
-        .message-item.unread {
-            background-color: rgba(25, 118, 210, 0.1);
-            border-left: 4px solid #1976d2;
-        }
-
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .message-from {
-            font-weight: 600;
-        }
-
-        .message-date {
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        .message-content {
-            margin: 1rem 0;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .message-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .loading {
-            opacity: 0.6;
-        }
-
-        .htmx-request .loading {
-            opacity: 1;
-        }
-
-        .error-msg {
-            color: var(--danger-color);
-            padding: 1rem;
-            background-color: rgba(211, 47, 47, 0.1);
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .success-msg {
-            color: var(--success-color);
-            padding: 1rem;
-            background-color: rgba(56, 142, 60, 0.1);
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .upload-progress {
-            display: none;
-        }
-
-        .htmx-request.upload-progress {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .spinner {
-            border: 3px solid rgba(25, 118, 210, 0.3);
-            border-top: 3px solid #1976d2;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        .message-list { display: flex; flex-direction: column; gap: 1rem; }
+        .message-item { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; background: var(--card); }
+        .message-item.unread { border-left: 4px solid var(--primary); }
+        .message-header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+        .message-meta { color: var(--muted); font-size: 0.9rem; }
+        .message-content { margin: 0.75rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .message-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .empty { color: var(--muted); }
     </style>
 </head>
-<body {{if .Theme}}data-theme="{{ .Theme }}"{{end}}>
+<body hx-headers='{"X-CSRF-Token": "{{.CSRFToken}}"}'>
     <header>
         <h1>Photography Admin</h1>
         <nav>
-            <a href="/admin" {{if eq .Page "dashboard"}}class="active"{{end}}>Dashboard</a>
-            <a href="/admin/photos" {{if eq .Page "photos"}}class="active"{{end}}>Photos</a>
-            <a href="/admin/messages" {{if eq .Page "messages"}}class="active"{{end}}>Messages</a>
-            <a href="/" style="margin-left: auto;">← Back to Gallery</a>
-            <form method="POST" action="/admin/logout" style="margin: 0;">
-                <button type="submit" class="btn btn-secondary" style="margin: 0;">Logout</button>
+            <a href="/admin"{{if eq .Page "dashboard"}} class="active"{{end}}>Dashboard</a>
+            <a href="/admin/photos"{{if eq .Page "photos"}} class="active"{{end}}>Photos</a>
+            <a href="/admin/messages"{{if eq .Page "messages"}} class="active"{{end}}>Messages</a>
+            <a href="/">View gallery</a>
+            <form method="POST" action="/admin/logout">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit" class="btn">Logout</button>
             </form>
         </nav>
     </header>
 
     <main>
-        {{block "admin_content" .}}{{end}}
+        <div id="flash" class="flash" role="alert" hidden></div>
+        {{if eq .Page "dashboard"}}{{template "admin_dashboard_content" .}}
+        {{else if eq .Page "photos"}}{{template "admin_photos_content" .}}
+        {{else if eq .Page "messages"}}{{template "admin_messages_content" .}}
+        {{end}}
     </main>
 
-    <footer>
-        <p>&copy; 2024. All rights reserved.</p>
-    </footer>
-
     <script src="/static/vendor/htmx.min.js"></script>
-    <script src="/static/vendor/alpine.min.js"></script>
+    <script>
+        document.body.addEventListener('htmx:responseError', function (e) {
+            var flash = document.getElementById('flash');
+            var text = (e.detail.xhr.responseText || '').trim();
+            flash.textContent = text && text.length < 200 && text.charAt(0) !== '<' && text.charAt(0) !== '{'
+                ? text : 'Request failed (' + e.detail.xhr.status + ').';
+            flash.hidden = false;
+        });
+        document.body.addEventListener('htmx:beforeRequest', function () {
+            document.getElementById('flash').hidden = true;
+        });
+    </script>
 </body>
 </html>
 {{end}}

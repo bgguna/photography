@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/disintegration/imaging"
-	"github.com/rwcarlsen/goexif/exif"
 	"github.com/rs/zerolog/log"
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 // Photo represents a photo in the database.
@@ -44,11 +44,11 @@ type Photo struct {
 
 // PhotoService handles photo operations.
 type PhotoService struct {
-	db               *sql.DB
-	storagePath      string
-	thumbSize        int
-	webSize          int
-	maxUploadSize    int64
+	db            *sql.DB
+	storagePath   string
+	thumbSize     int
+	webSize       int
+	maxUploadSize int64
 }
 
 // NewPhotoService creates a new PhotoService.
@@ -322,8 +322,8 @@ func (ps *PhotoService) RegenerateThumbnails(photoID int) error {
 func (ps *PhotoService) createPhoto(photo *Photo) error {
 	result, err := ps.db.Exec(`
 		INSERT INTO photos (uploader_user_id, original_mime_type, original_filename,
-		                   original_path, is_public)
-		VALUES (?, ?, ?, ?, ?)
+		                   original_path, is_public, sort_order)
+		VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM photos))
 	`, photo.UploaderUserID, photo.OriginalMIME, photo.OriginalFilename,
 		"", photo.IsPublic)
 
@@ -381,7 +381,7 @@ func (ps *PhotoService) listPhotos(whereClause string) ([]Photo, error) {
 	if whereClause != "" {
 		query += " " + whereClause
 	}
-	query += " ORDER BY sort_order ASC"
+	query += " ORDER BY sort_order ASC, id ASC"
 
 	rows, err := ps.db.Query(query)
 	if err != nil {
@@ -583,4 +583,62 @@ func extractEXIF(data []byte) *EXIFData {
 	}
 
 	return exifData
+}
+
+// MovePhoto moves a photo one position up or down in the display order.
+// Moving past either end is a no-op.
+func (ps *PhotoService) MovePhoto(photoID int, direction string) error {
+	if direction != "up" && direction != "down" {
+		return fmt.Errorf("invalid direction %q", direction)
+	}
+
+	tx, err := ps.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query("SELECT id FROM photos ORDER BY sort_order ASC, id ASC")
+	if err != nil {
+		return fmt.Errorf("failed to list photo order: %w", err)
+	}
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	idx := -1
+	for i, id := range ids {
+		if id == photoID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("photo not found")
+	}
+
+	swap := idx - 1
+	if direction == "down" {
+		swap = idx + 1
+	}
+	if swap >= 0 && swap < len(ids) {
+		ids[idx], ids[swap] = ids[swap], ids[idx]
+	}
+
+	for i, id := range ids {
+		if _, err := tx.Exec("UPDATE photos SET sort_order = ? WHERE id = ?", i, id); err != nil {
+			return fmt.Errorf("failed to update sort order: %w", err)
+		}
+	}
+	return tx.Commit()
 }

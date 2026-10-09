@@ -18,7 +18,8 @@
                 <img src="/photos/{{$photo.ID}}/thumb"
                      alt="Photo"
                      loading="lazy"
-                     srcset="/photos/{{$photo.ID}}/thumb 280w, /photos/{{$photo.ID}}/web 600w">
+                     srcset="/photos/{{$photo.ID}}/thumb 400w, /photos/{{$photo.ID}}/web 1600w"
+                     sizes="(max-width: 480px) 50vw, 280px">
             </div>
             {{end}}
         </div>
@@ -48,7 +49,7 @@ function lightbox() {
     return {
         isOpen: false,
         currentIndex: 0,
-        photos: {{.PhotosJSON}},
+        count: {{len .Photos}},
 
         open(index) {
             this.currentIndex = index;
@@ -62,7 +63,7 @@ function lightbox() {
         },
 
         next() {
-            if (this.currentIndex < this.photos.length - 1) {
+            if (this.currentIndex < this.count - 1) {
                 this.currentIndex++;
             } else {
                 this.currentIndex = 0;
@@ -73,7 +74,7 @@ function lightbox() {
             if (this.currentIndex > 0) {
                 this.currentIndex--;
             } else {
-                this.currentIndex = this.photos.length - 1;
+                this.currentIndex = this.count - 1;
             }
         }
     }

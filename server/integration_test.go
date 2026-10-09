@@ -171,8 +171,8 @@ func TestIntegration_AllPublicRoutes(t *testing.T) {
 	router := setupRouter(tmpDb)
 
 	publicRoutes := []struct {
-		method   string
-		path     string
+		method      string
+		path        string
 		allowNot404 bool
 	}{
 		{"GET", "/", false},

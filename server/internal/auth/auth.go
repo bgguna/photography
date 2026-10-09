@@ -244,7 +244,7 @@ type RateLimiter struct {
 }
 
 type tokenBucket struct {
-	tokens    int
+	tokens     int
 	lastRefill time.Time
 }
 
@@ -273,7 +273,7 @@ func (rl *RateLimiter) Allow(ip string, maxRequests int, window time.Duration) b
 	if !exists || now.Sub(bucket.lastRefill) > window {
 		// Create or reset bucket
 		rl.buckets[host] = &tokenBucket{
-			tokens:    maxRequests - 1,
+			tokens:     maxRequests - 1,
 			lastRefill: now,
 		}
 		return true
@@ -298,21 +298,4 @@ func (rl *RateLimiter) Cleanup(maxAge time.Duration) {
 			delete(rl.buckets, ip)
 		}
 	}
-}
-
-// generateCSRFToken generates a random CSRF token.
-func generateCSRFToken() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
-// GenerateCSRFTokenForSession generates a CSRF token for a session.
-// In a real app, this would be stored in the database associated with the session.
-// For now, we'll use a simple approach: the token is derived from the session ID.
-func GenerateCSRFTokenForSession(sessionID string) (string, error) {
-	return generateCSRFToken()
 }
