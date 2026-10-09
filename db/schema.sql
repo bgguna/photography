@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS photos (
   aperture              REAL NULL,
   shutter_speed        TEXT NULL,
 
+  sort_order           INTEGER NOT NULL DEFAULT 0,
+  is_public            INTEGER NOT NULL DEFAULT 1 CHECK (is_public IN (0,1)),
+
   FOREIGN KEY (uploader_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -44,6 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_photos_gps_lat ON photos(gps_lat);
 CREATE INDEX IF NOT EXISTS idx_photos_gps_lng ON photos(gps_lng);
 CREATE INDEX IF NOT EXISTS idx_photos_iso ON photos(iso);
 CREATE INDEX IF NOT EXISTS idx_photos_aperture ON photos(aperture);
+CREATE INDEX IF NOT EXISTS idx_photos_is_public ON photos(is_public);
 
 CREATE TABLE IF NOT EXISTS contact_messages (
   id         INTEGER PRIMARY KEY,
@@ -54,6 +58,15 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   status     TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','read','archived')),
   read_at    TEXT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id          TEXT PRIMARY KEY,
+  user_id     INTEGER NOT NULL,
+  expires_at  TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 
 -- Initialize single-row settings
 INSERT OR IGNORE INTO gallery_settings (id, gallery_public, gallery_password_hash, updated_at)

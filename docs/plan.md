@@ -5,7 +5,7 @@ linked file for the full implementation plan.
 
 | # | Task | Summary | Status |
 |---|------|---------|--------|
-| 01 | [Database schema migrations](tasks/01-schema-migrations.md) | Add `sessions` table and `sort_order`/`is_public` (hide/publish) columns on `photos`. No albums. | NEW |
+| 01 | [Database schema migrations](tasks/01-schema-migrations.md) | Add `sessions` table and `sort_order`/`is_public` (hide/publish) columns on `photos`. No albums. | DONE |
 | 02 | [App bootstrap & wiring](tasks/02-app-wiring.md) | Turn `main.go` into a real entry point: config, DB, router skeleton, static files, graceful shutdown. | NEW |
 | 03 | [Admin authentication](tasks/03-admin-auth.md) | Session-cookie login/logout for the single admin user, with auth middleware on `/admin/*`. | NEW |
 | 04 | [Photo upload & processing pipeline](tasks/04-photo-pipeline.md) | Implement the `photo` package: save originals, extract EXIF, generate thumb/web derived sizes. | NEW |
