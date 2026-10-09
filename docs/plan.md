@@ -11,5 +11,5 @@ linked file for the full implementation plan.
 | 04 | [Photo upload & processing pipeline](tasks/04-photo-pipeline.md) | Implement the `photo` package: save originals, extract EXIF, generate thumb/web derived sizes. | DONE |
 | 05 | [Public gallery templates & UI](tasks/05-public-gallery.md) | Mobile-first single-gallery home and lightbox using htmx + Alpine. | IN PROGRESS |
 | 06 | [Admin UI](tasks/06-admin-ui.md) | htmx-driven admin pages: upload, delete, hide/publish, reorder, contact messages. | DONE |
-| 07 | [Contact form](tasks/07-contact-form.md) | Wire the existing contact handlers into routes, with a public form, honeypot, and rate limiting. | NEW |
-| 08 | [Raspberry Pi deployment](tasks/08-deployment-pi.md) | Cross-compiled binary, systemd service, Caddy reverse proxy, external drive mount, backups. | NEW |
+| 07 | [Contact form](tasks/07-contact-form.md) | Wire the existing contact handlers into routes, with a public form, honeypot, and rate limiting. | DONE |
+| 08 | [Raspberry Pi deployment](tasks/08-deployment-pi.md) | Cross-compiled binary, systemd service, Caddy reverse proxy, external drive mount, backups. | DONE |
