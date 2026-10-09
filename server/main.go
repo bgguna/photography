@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/bgguna/photography/internal/auth"
 	"github.com/bgguna/photography/internal/config"
 	"github.com/bgguna/photography/internal/db"
 )
@@ -131,6 +132,11 @@ func setupRouter(database *sql.DB) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(loggingMiddleware())
 
+	// Create auth service and rate limiter
+	authSvc := auth.NewAuthService(database)
+	loginLimiter := auth.NewRateLimiter()
+	isSecure := os.Getenv("MODE_ENV") == "production"
+
 	// Static files
 	router.Static("/static", "./internal/web/static")
 
@@ -160,56 +166,103 @@ func setupRouter(database *sql.DB) *gin.Engine {
 		c.String(http.StatusNotImplemented, "TODO: submit contact form")
 	})
 
-	// Admin routes (session-gated)
+	// Admin routes
 	admin := router.Group("/admin")
 	{
+		// Login routes (no auth middleware)
 		admin.GET("/login", func(c *gin.Context) {
 			c.String(http.StatusNotImplemented, "TODO: admin login page")
 		})
 
 		admin.POST("/login", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin login handler")
+			// Rate limiting
+			clientIP := c.ClientIP()
+			if !loginLimiter.Allow(clientIP, 5, 15*time.Minute) {
+				c.JSON(http.StatusTooManyRequests, gin.H{
+					"error": "too many login attempts",
+				})
+				return
+			}
+
+			// Get email and password from form
+			email := c.PostForm("email")
+			password := c.PostForm("password")
+
+			if email == "" || password == "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "email and password required",
+				})
+				return
+			}
+
+			// Attempt login
+			session, err := authSvc.Login(email, password, 7*24*time.Hour)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "invalid credentials",
+				})
+				return
+			}
+
+			// Set session cookie
+			auth.SetSessionCookie(c, session.ID, isSecure)
+			c.Redirect(http.StatusFound, "/admin")
 		})
 
-		admin.POST("/logout", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin logout")
-		})
+		// Protected routes
+		protected := admin.Group("")
+		protected.Use(auth.AuthMiddleware(authSvc))
+		{
+			protected.POST("/logout", func(c *gin.Context) {
+				// Get session cookie
+				sessionID, err := c.Cookie("photography_session")
+				if err == nil {
+					_ = authSvc.Logout(sessionID)
+				}
+				auth.ClearSessionCookie(c)
+				c.Redirect(http.StatusFound, "/admin/login")
+			})
 
-		admin.GET("", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin dashboard")
-		})
+			protected.GET("", func(c *gin.Context) {
+				user := auth.GetUserFromContext(c)
+				c.JSON(http.StatusOK, gin.H{
+					"message": "admin dashboard",
+					"user":    user.Email,
+				})
+			})
 
-		admin.GET("/photos", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin photos list")
-		})
+			protected.GET("/photos", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin photos list")
+			})
 
-		admin.POST("/photos", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin upload photo")
-		})
+			protected.POST("/photos", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin upload photo")
+			})
 
-		admin.GET("/photos/:id/thumb", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin photo thumbnail")
-		})
+			protected.GET("/photos/:id/thumb", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin photo thumbnail")
+			})
 
-		admin.GET("/photos/:id/web", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin photo web size")
-		})
+			protected.GET("/photos/:id/web", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin photo web size")
+			})
 
-		admin.GET("/photos/:id/original", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin photo original")
-		})
+			protected.GET("/photos/:id/original", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin photo original")
+			})
 
-		admin.POST("/photos/:id/delete", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin delete photo")
-		})
+			protected.POST("/photos/:id/delete", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin delete photo")
+			})
 
-		admin.POST("/photos/:id/visibility", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin toggle photo visibility")
-		})
+			protected.POST("/photos/:id/visibility", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin toggle photo visibility")
+			})
 
-		admin.GET("/messages", func(c *gin.Context) {
-			c.String(http.StatusNotImplemented, "TODO: admin messages")
-		})
+			protected.GET("/messages", func(c *gin.Context) {
+				c.String(http.StatusNotImplemented, "TODO: admin messages")
+			})
+		}
 	}
 
 	return router

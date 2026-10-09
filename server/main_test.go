@@ -171,12 +171,27 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 
 	router := setupRouter(tmpDb)
 
-	adminRoutes := []struct {
+	// GET /admin/login should return 501 (not implemented)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/admin/login", nil)
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("GET /admin/login returned %d, want %d", w.Code, http.StatusNotImplemented)
+	}
+
+	// POST /admin/login without credentials should return 400
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest("POST", "/admin/login", nil)
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("POST /admin/login returned %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	// Protected routes should redirect (302) without auth
+	protectedRoutes := []struct {
 		method string
 		path   string
 	}{
-		{"GET", "/admin/login"},
-		{"POST", "/admin/login"},
 		{"POST", "/admin/logout"},
 		{"GET", "/admin"},
 		{"GET", "/admin/photos"},
@@ -189,13 +204,13 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 		{"GET", "/admin/messages"},
 	}
 
-	for _, route := range adminRoutes {
+	for _, route := range protectedRoutes {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest(route.method, route.path, nil)
 		router.ServeHTTP(w, req)
 
-		if w.Code != http.StatusNotImplemented {
-			t.Errorf("%s %s returned %d, want %d", route.method, route.path, w.Code, http.StatusNotImplemented)
+		if w.Code != http.StatusFound {
+			t.Errorf("%s %s returned %d, want %d (redirect to login)", route.method, route.path, w.Code, http.StatusFound)
 		}
 	}
 }
