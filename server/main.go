@@ -23,6 +23,7 @@ import (
 	"github.com/bgguna/photography/internal/config"
 	"github.com/bgguna/photography/internal/db"
 	"github.com/bgguna/photography/internal/gallery"
+	"github.com/bgguna/photography/contact"
 	"github.com/bgguna/photography/photo"
 )
 
@@ -229,12 +230,31 @@ func setupRouter(database *sql.DB) *gin.Engine {
 		c.File(path)
 	})
 
+	// Create rate limiter for contact form
+	contactLimiter := auth.NewRateLimiter()
+
 	router.GET("/contact", func(c *gin.Context) {
-		c.String(http.StatusNotImplemented, "TODO: contact form")
+		if tmpl != nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			if err := tmpl.ExecuteTemplate(c.Writer, "contact_page", gin.H{}); err != nil {
+				log.Error().Err(err).Msg("Failed to execute contact template")
+				c.String(http.StatusInternalServerError, "Failed to render page")
+			}
+		} else {
+			c.String(http.StatusInternalServerError, "Templates not loaded")
+		}
 	})
 
 	router.POST("/contact", func(c *gin.Context) {
-		c.String(http.StatusNotImplemented, "TODO: submit contact form")
+		// Rate limiting: 5 submissions per IP per hour
+		clientIP := c.ClientIP()
+		if !contactLimiter.Allow(clientIP, 5, 60*time.Minute) {
+			c.String(http.StatusTooManyRequests, "Too many submission attempts. Please try again later.")
+			return
+		}
+
+		// Call the form handler
+		contact.HandleNewMsgForm(database)(c)
 	})
 
 	// Admin routes

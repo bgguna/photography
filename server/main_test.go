@@ -161,8 +161,8 @@ func TestSetupRouter_PublicRoutes(t *testing.T) {
 		{"GET", "/", 200, 299, "home page"},
 		{"GET", "/photos/1/thumb", 404, 404, "missing photo thumbnail"},
 		{"GET", "/photos/1/web", 404, 404, "missing photo web"},
-		{"GET", "/contact", http.StatusNotImplemented, http.StatusNotImplemented, "contact form"},
-		{"POST", "/contact", http.StatusNotImplemented, http.StatusNotImplemented, "contact form submit"},
+		{"GET", "/contact", 200, 299, "contact form"},
+		{"POST", "/contact", 200, 499, "contact form submit"},
 	}
 
 	for _, route := range routes {
