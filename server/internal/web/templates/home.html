@@ -1,0 +1,82 @@
+{{define "title"}}Gallery — Photography{{end}}
+
+{{define "og_tags"}}
+<meta property="og:title" content="Photography Gallery">
+<meta property="og:description" content="A personal photography gallery">
+<meta property="og:url" content="/">
+<meta property="og:type" content="website">
+{{end}}
+
+{{define "content"}}
+<div x-data="lightbox()" @keydown.escape="close()" @keydown.arrow-left="prev()" @keydown.arrow-right="next()" class="gallery-container">
+    {{if not .Photos}}
+        <p style="text-align: center; padding: 2rem; color: #999;">No photos yet.</p>
+    {{else}}
+        <div class="gallery-grid">
+            {{range $index, $photo := .Photos}}
+            <div class="photo-item" @click="open({{$index}})">
+                <img src="/photos/{{$photo.ID}}/thumb"
+                     alt="Photo"
+                     loading="lazy"
+                     srcset="/photos/{{$photo.ID}}/thumb 280w, /photos/{{$photo.ID}}/web 600w">
+            </div>
+            {{end}}
+        </div>
+
+        <!-- Lightbox -->
+        <div class="lightbox" :class="{ open: isOpen }" @click.self="close()">
+            <div class="lightbox-controls" @click="close()">×</div>
+
+            {{if gt (len .Photos) 1}}
+            <div class="lightbox-nav lightbox-prev" @click="prev()">‹</div>
+            <div class="lightbox-nav lightbox-next" @click="next()">›</div>
+            {{end}}
+
+            {{range $index, $photo := .Photos}}
+            <img x-show="currentIndex === {{$index}}"
+                 src="/photos/{{$photo.ID}}/web"
+                 alt="Photo {{$index}}"
+                 class="lightbox-image"
+                 style="display: none;">
+            {{end}}
+        </div>
+    {{end}}
+</div>
+
+<script>
+function lightbox() {
+    return {
+        isOpen: false,
+        currentIndex: 0,
+        photos: {{.PhotosJSON}},
+
+        open(index) {
+            this.currentIndex = index;
+            this.isOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+
+        close() {
+            this.isOpen = false;
+            document.body.style.overflow = '';
+        },
+
+        next() {
+            if (this.currentIndex < this.photos.length - 1) {
+                this.currentIndex++;
+            } else {
+                this.currentIndex = 0;
+            }
+        },
+
+        prev() {
+            if (this.currentIndex > 0) {
+                this.currentIndex--;
+            } else {
+                this.currentIndex = this.photos.length - 1;
+            }
+        }
+    }
+}
+</script>
+{{end}}
