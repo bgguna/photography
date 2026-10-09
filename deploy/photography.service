@@ -1,0 +1,19 @@
+[Unit]
+Description=Photography portfolio server
+After=network.target mnt-photo\x2ddrive.mount
+Requires=mnt-photo\x2ddrive.mount
+
+[Service]
+Type=simple
+User=photography
+Group=photography
+WorkingDirectory=/opt/photography
+EnvironmentFile=/opt/photography/.env
+ExecStart=/opt/photography/bin/server-arm64
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

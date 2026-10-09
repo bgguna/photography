@@ -1,0 +1,44 @@
+# Caddyfile for photography portfolio
+# This reverse proxy configuration sits in front of the Go server running on localhost:8080
+
+# LAN-only configuration (recommended for private home deployment)
+# For Tailscale/VPN access, use the internal Caddy CA for self-signed certs
+:443 {
+    # Self-signed certificate for LAN
+    tls internal
+
+    # Reverse proxy to the Go app running on localhost:8080
+    reverse_proxy 127.0.0.1:8080
+
+    # Security headers
+    header X-Content-Type-Options "nosniff"
+    header X-Frame-Options "SAMEORIGIN"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Do NOT serve /derived/ or /originals/ from disk
+    # All image requests must go through the Go app to enforce is_public checks
+    # The mount path at /mnt/photo-drive should not be web-accessible
+}
+
+# Public internet configuration (if deploying to the public web)
+# Uncomment and configure the following for public internet access:
+#
+# your-domain.example.com {
+#     reverse_proxy 127.0.0.1:8080
+#
+#     # Caddy will automatically obtain and renew HTTPS certificates
+#     # from Let's Encrypt (requires port 80/443 accessible on the internet)
+#
+#     header X-Content-Type-Options "nosniff"
+#     header X-Frame-Options "SAMEORIGIN"
+#     header Referrer-Policy "strict-origin-when-cross-origin"
+#
+#     # Rate limiting at the reverse proxy level (optional)
+#     # rate_limit /admin/login 5r/15m
+# }
+
+# HTTP redirect to HTTPS (for public deployments)
+# Uncomment for public internet:
+# http:// {
+#     redir https://{host}{uri} permanent
+# }
