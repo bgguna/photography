@@ -582,3 +582,43 @@ func TestMovePhoto(t *testing.T) {
 		t.Error("expected error for unknown photo")
 	}
 }
+
+func TestRegenerateThumbnails(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+	storage := setupTestStorage(t)
+	defer os.RemoveAll(storage)
+	ps := NewPhotoService(database, storage)
+
+	fh, f := createTestMultipartFile(t, "r.jpg", createTestImage(1200, 800))
+	defer f.Close()
+	p, err := ps.UploadPhoto(f, fh, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	thumb := filepath.Join(storage, "derived", "1_thumb.jpg")
+	os.Remove(thumb)
+	if err := ps.RegenerateThumbnails(p.ID); err != nil {
+		t.Fatalf("RegenerateThumbnails: %v", err)
+	}
+	if _, err := os.Stat(thumb); err != nil {
+		t.Error("thumbnail not regenerated")
+	}
+
+	if err := ps.RegenerateThumbnails(9999); err == nil {
+		t.Error("expected error for missing photo")
+	}
+
+	os.Remove(p.OriginalPath)
+	if err := ps.RegenerateThumbnails(p.ID); err == nil {
+		t.Error("expected error for missing original")
+	}
+}
+
+func TestExtractEXIF_NoData(t *testing.T) {
+	if e := extractEXIF([]byte("not an image")); e != nil && e.CameraMake != nil {
+		t.Errorf("unexpected EXIF: %+v", e)
+	}
+	_ = extractEXIF(createTestImage(10, 10))
+}

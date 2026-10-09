@@ -540,26 +540,22 @@ func extractEXIF(data []byte) *EXIFData {
 
 	// Camera Make
 	if make, err := x.Get(exif.Make); err == nil && make != nil {
-		str := make.String()
-		exifData.CameraMake = &str
+		if str, err := make.StringVal(); err == nil {
+			exifData.CameraMake = &str
+		}
 	}
 
 	// Camera Model
 	if model, err := x.Get(exif.Model); err == nil && model != nil {
-		str := model.String()
-		exifData.CameraModel = &str
+		if str, err := model.StringVal(); err == nil {
+			exifData.CameraModel = &str
+		}
 	}
 
-	// GPS - use GPS tags directly
-	if lat, err := x.Get(exif.GPSLatitude); err == nil && lat != nil {
-		if latVal, err := lat.Float(0); err == nil {
-			exifData.GPSLat = &latVal
-		}
-	}
-	if lng, err := x.Get(exif.GPSLongitude); err == nil && lng != nil {
-		if lngVal, err := lng.Float(0); err == nil {
-			exifData.GPSLng = &lngVal
-		}
+	// GPS (decimal degrees, sign applied from the N/S and E/W reference tags)
+	if lat, lng, err := x.LatLong(); err == nil {
+		exifData.GPSLat = &lat
+		exifData.GPSLng = &lng
 	}
 
 	// ISO
@@ -571,15 +567,18 @@ func extractEXIF(data []byte) *EXIFData {
 
 	// Aperture
 	if f, err := x.Get(exif.FNumber); err == nil && f != nil {
-		if val, err := f.Float(0); err == nil {
+		if r, err := f.Rat(0); err == nil {
+			val, _ := r.Float64()
 			exifData.Aperture = &val
 		}
 	}
 
 	// Shutter Speed
 	if ss, err := x.Get(exif.ExposureTime); err == nil && ss != nil {
-		str := ss.String()
-		exifData.ShutterSpeed = &str
+		if r, err := ss.Rat(0); err == nil {
+			str := r.String()
+			exifData.ShutterSpeed = &str
+		}
 	}
 
 	return exifData
