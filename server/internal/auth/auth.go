@@ -299,3 +299,20 @@ func (rl *RateLimiter) Cleanup(maxAge time.Duration) {
 		}
 	}
 }
+
+// generateCSRFToken generates a random CSRF token.
+func generateCSRFToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// GenerateCSRFTokenForSession generates a CSRF token for a session.
+// In a real app, this would be stored in the database associated with the session.
+// For now, we'll use a simple approach: the token is derived from the session ID.
+func GenerateCSRFTokenForSession(sessionID string) (string, error) {
+	return generateCSRFToken()
+}

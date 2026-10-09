@@ -1,0 +1,190 @@
+{{define "admin_dashboard"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Admin — Photography</title>
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --primary-text: #1a1a1a;
+            --border-color: #e0e0e0;
+            --hover-bg: #f5f5f5;
+            --danger-color: #d32f2f;
+            --success-color: #388e3c;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --primary-bg: #1a1a1a;
+                --primary-text: #ffffff;
+                --border-color: #333333;
+                --hover-bg: #2a2a2a;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--primary-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--primary-bg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        nav a, nav form {
+            color: var(--primary-text);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        nav a:hover {
+            opacity: 0.7;
+        }
+
+        nav a.active {
+            font-weight: 600;
+            border-bottom: 2px solid #1976d2;
+            padding-bottom: 0.5rem;
+        }
+
+        nav form {
+            margin: 0;
+            margin-left: auto;
+        }
+
+        nav button {
+            padding: 0.5rem 1rem;
+            background-color: #757575;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        nav button:hover {
+            background-color: #616161;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #1976d2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-secondary {
+            background-color: #757575;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #616161;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Photography Admin</h1>
+        <nav>
+            <a href="/admin" class="active">Dashboard</a>
+            <a href="/admin/photos">Photos</a>
+            <a href="/admin/messages">Messages</a>
+            <a href="/">← Back to Gallery</a>
+            <form method="POST" action="/admin/logout">
+                <button type="submit">Logout</button>
+            </form>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Dashboard</h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin: 2rem 0;">
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 2rem; text-align: center;">
+                <div style="font-size: 3rem; font-weight: 600; color: #1976d2;">{{.PhotoCount}}</div>
+                <div style="font-size: 1.1rem; color: #666; margin-top: 0.5rem;">Photos</div>
+                <a href="/admin/photos" class="btn btn-primary" style="margin-top: 1rem; display: block;">View & Manage</a>
+            </div>
+
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 2rem; text-align: center;">
+                <div style="font-size: 3rem; font-weight: 600; {{if gt .UnreadMessages 0}}color: #d32f2f;{{else}}color: #388e3c;{{end}}">{{.UnreadMessages}}</div>
+                <div style="font-size: 1.1rem; color: #666; margin-top: 0.5rem;">Unread Messages</div>
+                <a href="/admin/messages" class="btn {{if gt .UnreadMessages 0}}btn-danger{{else}}btn-secondary{{end}}" style="margin-top: 1rem; display: block;">View Messages</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 3rem;">
+            <h3>Quick Actions</h3>
+            <div style="margin-top: 1rem;">
+                <a href="/admin/photos" class="btn btn-primary">Upload Photo</a>
+                <a href="/" class="btn btn-secondary">View Public Gallery</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024. All rights reserved.</p>
+    </footer>
+
+    <script src="/static/vendor/htmx.min.js"></script>
+</body>
+</html>
+{{end}}

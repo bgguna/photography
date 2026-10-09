@@ -182,20 +182,20 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 
 	router := setupRouter(tmpDb)
 
-	// GET /admin/login should return 501 (not implemented)
+	// GET /admin/login should render the login page (200)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/admin/login", nil)
 	router.ServeHTTP(w, req)
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("GET /admin/login returned %d, want %d", w.Code, http.StatusNotImplemented)
+	if w.Code != http.StatusOK {
+		t.Errorf("GET /admin/login returned %d, want %d", w.Code, http.StatusOK)
 	}
 
-	// POST /admin/login without credentials should return 400
+	// POST /admin/login without credentials should redirect to login with error
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest("POST", "/admin/login", nil)
 	router.ServeHTTP(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("POST /admin/login returned %d, want %d", w.Code, http.StatusBadRequest)
+	if w.Code != http.StatusFound {
+		t.Errorf("POST /admin/login returned %d, want %d (redirect)", w.Code, http.StatusFound)
 	}
 
 	// Protected routes should redirect (302) without auth
@@ -210,7 +210,7 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 		{"GET", "/admin/photos/1/thumb"},
 		{"GET", "/admin/photos/1/web"},
 		{"GET", "/admin/photos/1/original"},
-		{"POST", "/admin/photos/1/delete"},
+		{"DELETE", "/admin/photos/1"},
 		{"POST", "/admin/photos/1/visibility"},
 		{"GET", "/admin/messages"},
 	}

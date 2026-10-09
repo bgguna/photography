@@ -96,7 +96,7 @@ func TestIntegration_ConfigAndRouter(t *testing.T) {
 	}{
 		{"GET", "/healthz", http.StatusOK},
 		{"GET", "/", http.StatusOK},
-		{"GET", "/admin/login", http.StatusNotImplemented},
+		{"GET", "/admin/login", http.StatusOK},
 	}
 
 	for _, ep := range endpoints {
@@ -215,7 +215,7 @@ func TestIntegration_AllAdminRoutes(t *testing.T) {
 		{"GET", "/admin/photos/123/thumb"},
 		{"GET", "/admin/photos/123/web"},
 		{"GET", "/admin/photos/123/original"},
-		{"POST", "/admin/photos/123/delete"},
+		{"DELETE", "/admin/photos/123"},
 		{"POST", "/admin/photos/123/visibility"},
 		{"GET", "/admin/messages"},
 	}

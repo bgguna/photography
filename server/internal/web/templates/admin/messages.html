@@ -1,0 +1,173 @@
+{{define "admin_messages"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages — Admin — Photography</title>
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --primary-text: #1a1a1a;
+            --border-color: #e0e0e0;
+            --hover-bg: #f5f5f5;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --primary-bg: #1a1a1a;
+                --primary-text: #ffffff;
+                --border-color: #333333;
+                --hover-bg: #2a2a2a;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--primary-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        nav a, nav form {
+            text-decoration: none;
+            color: var(--primary-text);
+        }
+
+        nav a.active {
+            font-weight: 600;
+            border-bottom: 2px solid #1976d2;
+        }
+
+        nav form {
+            margin: 0;
+            margin-left: auto;
+        }
+
+        nav button {
+            padding: 0.5rem 1rem;
+            background-color: #757575;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .message-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .message-item {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1rem;
+            background-color: var(--hover-bg);
+        }
+
+        .message-item.unread {
+            background-color: rgba(25, 118, 210, 0.1);
+            border-left: 4px solid #1976d2;
+        }
+
+        .message-header {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .message-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 1rem 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-right: 0.5rem;
+        }
+
+        .btn-danger {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Photography Admin</h1>
+        <nav>
+            <a href="/admin">Dashboard</a>
+            <a href="/admin/photos">Photos</a>
+            <a href="/admin/messages" class="active">Messages</a>
+            <a href="/">← Back</a>
+            <form method="POST" action="/admin/logout">
+                <button type="submit">Logout</button>
+            </form>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Contact Messages</h2>
+        <p>{{.UnreadCount}} unread, {{.TotalCount}} total</p>
+
+        {{if .Messages}}
+        <div class="message-list">
+            {{range .Messages}}
+            <div id="msg-{{.ID}}" class="message-item {{if eq .Status "new"}}unread{{end}}">
+                <div class="message-header">
+                    <div><strong>{{.Name}}</strong> {{if .Email}}<span style="color: #666;">{{.Email}}</span>{{end}}</div>
+                    <div style="color: #666; font-size: 0.9rem;">{{.CreatedAt}}</div>
+                </div>
+                <div class="message-content">{{.Message}}</div>
+                <div>
+                    {{if eq .Status "new"}}
+                    <button class="btn" hx-post="/admin/messages/{{.ID}}/read" hx-target="#msg-{{.ID}}" hx-swap="outerHTML">Mark as Read</button>
+                    {{end}}
+                    <button class="btn" hx-post="/admin/messages/{{.ID}}/archive" hx-target="#msg-{{.ID}}" hx-swap="outerHTML">Archive</button>
+                    <button class="btn btn-danger" hx-delete="/admin/messages/{{.ID}}" hx-confirm="Delete this message?">Delete</button>
+                </div>
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <p>No messages yet.</p>
+        {{end}}
+    </main>
+
+    <script src="/static/vendor/htmx.min.js"></script>
+</body>
+</html>
+{{end}}
