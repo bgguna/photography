@@ -13,3 +13,11 @@ linked file for the full implementation plan.
 | 06 | [Admin UI](tasks/06-admin-ui.md) | htmx-driven admin pages: upload, delete, hide/publish, reorder, contact messages. | DONE |
 | 07 | [Contact form](tasks/07-contact-form.md) | Wire the existing contact handlers into routes, with a public form, honeypot, and rate limiting. | DONE |
 | 08 | [Raspberry Pi deployment](tasks/08-deployment-pi.md) | Cross-compiled binary, systemd service, Caddy reverse proxy, external drive mount, backups. | DONE |
+| 09 | [Site title](tasks/09-site-title.md) | Rename the header to "Bogdan Guna Photography" and center it. | TODO |
+| 10 | [Rename "Gallery" tab](tasks/10-rename-gallery-tab.md) | Nav label "Gallery" becomes "Home". | TODO |
+| 11 | [New page](tasks/11-new-page.md) | Add a page between Home and Contact (content to be decided). | TODO |
+| 12 | [Contact Turnstile check](tasks/12-contact-turnstile.md) | Require a Cloudflare "Verify you are human" token to send a message. | TODO |
+| 13 | [Site-wide Cloudflare (evaluate)](tasks/13-site-wide-cloudflare.md) | Decide whether to put the whole site behind Cloudflare's proxy and challenges. | TODO |
+| 14 | [Contact heading spacing](tasks/14-contact-spacing.md) | More space between "Get in Touch" and the form. | TODO |
+| 15 | [Required contact email](tasks/15-contact-email-required.md) | Email becomes mandatory, enforced client- and server-side. | TODO |
+| 16 | [EXIF quotes](tasks/16-exif-quotes.md) | Backfill photos stored with quoted EXIF values before the extraction fix. | TODO |

@@ -1,0 +1,94 @@
+/* Shared light/dark palette and theme toggle for the public pages.
+   Follows the system setting unless the visitor picks a theme, which
+   theme.js records as data-theme="light" | "dark" on <html>. */
+
+:root {
+    color-scheme: light;
+    --primary-bg: #ffffff;
+    --primary-text: #1a1a1a;
+    --muted-text: #666666;
+    --border-color: #e0e0e0;
+    --hover-bg: #f5f5f5;
+    --success-color: #388e3c;
+    --error-color: #d32f2f;
+}
+
+/* Dark: very dark gray rather than pure black, with softened text. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --primary-bg: #1e1e1e;
+        --primary-text: #e6e6e6;
+        --muted-text: #9a9a9a;
+        --border-color: #343434;
+        --hover-bg: #2a2a2a;
+        --success-color: #66bb6a;
+        --error-color: #ef7373;
+    }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --primary-bg: #1e1e1e;
+    --primary-text: #e6e6e6;
+    --muted-text: #9a9a9a;
+    --border-color: #343434;
+    --hover-bg: #2a2a2a;
+    --success-color: #66bb6a;
+    --error-color: #ef7373;
+}
+
+body {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+header {
+    position: relative;
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--primary-text);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+    background-color: var(--hover-bg);
+}
+
+.theme-toggle:focus-visible {
+    outline: 2px solid #1976d2;
+    outline-offset: 2px;
+}
+
+.theme-toggle svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Show the icon for the theme you would switch to. */
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
+}

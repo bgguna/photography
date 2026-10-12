@@ -40,3 +40,23 @@ steps, and acceptance criteria.
 6. [Admin UI](06-admin-ui.md)
 7. [Contact form](07-contact-form.md)
 8. [Raspberry Pi deployment](08-deployment-pi.md)
+
+## Follow-ups
+
+Polish and hardening after the initial build.
+
+- **09 → 10 → 11** edit the same header and nav markup (duplicated in
+  `layout.html` and `contact.html`), so do them in order.
+- **12**, **14** and **15** all edit `contact.html`. They're independent, but
+  watch for merge conflicts.
+- **13** is a decision, not code. It may produce a follow-up deployment task.
+- **16** is a one-off data fix. Back up the Pi database first.
+
+9. [Site title: "Bogdan Guna Photography", centered](09-site-title.md)
+10. [Rename the "Gallery" tab to "Home"](10-rename-gallery-tab.md)
+11. [New page between "Home" and "Contact"](11-new-page.md)
+12. [Cloudflare Turnstile check on the contact form](12-contact-turnstile.md)
+13. [Evaluate: Cloudflare protection for the whole site](13-site-wide-cloudflare.md)
+14. [More space between "Get in Touch" and the form](14-contact-spacing.md)
+15. [Make email a required contact field](15-contact-email-required.md)
+16. [Remove extra quotes from displayed EXIF data](16-exif-quotes.md)
