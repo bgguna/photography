@@ -1,10 +1,8 @@
-# Remaining work
+# Tasks
 
-Task breakdown of everything left to build, per [../design.md](../design.md).
-Two steps from the design doc's original implementation order are already
-done: `go.mod` cleanup (dropped `mattn/go-sqlite3`/logrus, added
-`modernc.org/sqlite`) and fixing `internal/db/db.go` + `contact/contact.go` to
-compile and match the schema. Everything below is what's left.
+Task breakdown for the portfolio, per [../design.md](../design.md). Status for
+each task is in [../plan.md](../plan.md). The original build (01–08) is
+recorded here; the follow-up tasks (09–16) were added later.
 
 Each file is a self-contained implementation plan: goal, scope, concrete
 steps, and acceptance criteria.

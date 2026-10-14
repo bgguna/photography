@@ -96,16 +96,23 @@ htmx/template model without any architecture change:
 
 ```
 server/
-  main.go              # wiring: config, db, router, graceful shutdown
+  main.go              # wiring: config, db, router, public routes, graceful shutdown
+  admin_routes.go      # /admin routes (login, photos, messages, about)
+  cmd/
+    createadmin/       # creates an admin user, applies the schema
+    backfill-exif/     # re-reads EXIF from stored originals (one-off fixes)
+  contact/             # contact form handler + storage
+  photo/               # upload, EXIF extraction, derived sizes, ordering, visibility
   internal/
-    db/                # db.Open(), migrations runner
-    auth/               # session middleware, login/logout, password hashing
-    photo/              # upload, EXIF extraction, thumbnail generation, listing
-    contact/            # contact form handler + storage
-    gallery/             # public gallery rendering, visibility logic
+    config/            # settings from the environment
+    db/                # db.Open()
+    auth/              # sessions, login/logout, CSRF, rate limiting
+    admin/             # admin queries (counts, contact messages)
+    gallery/           # public photo list (visible photos only)
+    about/             # About page text: save, read, split into paragraphs
     web/
-      templates/        # .html templates (layouts, gallery, admin pages)
-      static/            # css/js/htmx vendor file
+      templates/       # .html templates: public pages, shared header, admin pages
+      static/          # theme.css, theme.js, htmx and Alpine vendor files
 ```
 
 ## Data model
@@ -124,6 +131,8 @@ Base schema (`db/schema.sql`) already has `users`, `gallery_settings`, `photos`,
   - `derived/{photo_id}_thumb.jpg` (grid thumbnail, ~400px)
   - `derived/{photo_id}_web.jpg` (lightbox size, ~1600px)
 - **`sessions`**: `id, user_id, expires_at` — cookie holds only the session id.
+- **`about_page`**: a single row (`id = 1`) holding the About page text. Plain
+  text with blank lines between paragraphs; it is HTML-escaped on output.
 
 ## Photo storage layout (external drive)
 
@@ -144,20 +153,26 @@ scale.
 
 ```
 Public:
-  GET  /                      gallery home (all public photos)
+  GET  /                      home: gallery of all public photos
+  GET  /about                 About page
   GET  /photos/:id/thumb      thumbnail (404 if hidden or missing)
   GET  /photos/:id/web        lightbox size (404 if hidden or missing)
   GET  /contact               contact form
-  POST /contact               submit (honeypot field + rate limit by IP)
+  POST /contact               submit (email required, honeypot field, rate limit by IP)
 
-Admin (session-gated):
+Admin (session-gated, CSRF token on every change):
   GET  /admin/login, POST /admin/login, POST /admin/logout
   GET  /admin                dashboard
   GET  /admin/photos, POST /admin/photos           list/upload
   GET  /admin/photos/:id/thumb|web|original   any photo, hidden included
-  POST /admin/photos/:id/delete
+  DELETE /admin/photos/:id
   POST /admin/photos/:id/visibility    hide / publish
+  POST /admin/photos/:id/move          reorder
   GET  /admin/messages         view contact submissions
+  POST /admin/messages/:id/read|archive, DELETE /admin/messages/:id
+  GET, POST /admin/about       edit the About page text
+
+The full table, with the rate limits, is in [server/readme.md](../server/readme.md#routes).
 ```
 
 ## Image serving
@@ -179,20 +194,21 @@ an implementation detail; URLs use the photo id and go through Go:
 
 - Cross-compile: `GOOS=linux GOARCH=arm64 go build`.
 - `systemd` unit runs the binary, `WorkingDirectory` pointed at the repo, env
-  file for secrets (session key, admin password hash), `Restart=on-failure`.
+  file for secrets (the session secret), `Restart=on-failure`. The admin
+  password is stored hashed in the database, set with `cmd/createadmin`.
 - External drive mounted via `/etc/fstab` using a stable UUID (not `/dev/sda1`);
   the app reads the mount path from config/env and treats "drive not mounted"
   as a startup check, not a silent failure.
 - Caddy: automatic HTTPS if exposed publicly, reverse-proxies everything
   to Go. It does not serve photo files off disk (see Image serving).
 
-## Implementation order
+## Implementation status
 
-1. ~~Clean up `go.mod` (drop `mattn/go-sqlite3` and logrus; settle on
-   `modernc.org/sqlite` + zerolog).~~ Done.
-2. ~~Fix `internal/db/db.go` and `contact/contact.go` so they compile and
-   match the schema.~~ Done.
-3. Everything remaining is broken out into individual implementation plans in
-   [tasks/](tasks/README.md): schema migrations, app wiring, admin auth, the
-   photo pipeline, the public gallery, the admin UI, the contact form, and
-   Raspberry Pi deployment — in that dependency order.
+The implementation plans are in [tasks/](tasks/README.md), and their status is
+tracked in [plan.md](plan.md). Tasks 01–08 (schema, app wiring, admin auth,
+photo pipeline, public gallery, admin UI, contact form, Raspberry Pi
+deployment) are marked done, except task 05 (public gallery), which plan.md
+still lists as in progress. Tasks 09–11 and 14–16 (site title, navigation, the
+About page, contact form changes, EXIF fixes) are done. Still open: the
+Cloudflare Turnstile check on the contact form (task 12) and the decision on
+site-wide Cloudflare protection (task 13).

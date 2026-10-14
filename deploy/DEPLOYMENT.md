@@ -113,6 +113,42 @@ sudo mkdir -p db
 sudo chown photography:photography db
 ```
 
+## Step 5a: Create the Database and First Admin
+
+The server does not create its tables on startup, so the schema has to be
+applied first. Install the `sqlite3` command-line tool on the Pi:
+
+```bash
+sudo apt-get install -y sqlite3
+```
+
+From your development machine, copy the schema and cross-compile the admin
+tool:
+
+```bash
+scp db/schema.sql pi@your-pi-ip:~/
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bin/createadmin-arm64 ./server/cmd/createadmin
+scp bin/createadmin-arm64 pi@your-pi-ip:~/
+```
+
+On the Pi, put the schema and admin tool where the service user can read them,
+apply the schema, then create the admin user:
+
+```bash
+sudo cp ~/schema.sql /opt/photography/db/schema.sql
+sudo chown photography:photography /opt/photography/db/schema.sql
+sudo -u photography sqlite3 /opt/photography/db/gallery.sqlite < /opt/photography/db/schema.sql
+
+sudo cp ~/createadmin-arm64 /opt/photography/bin/createadmin
+sudo chmod +x /opt/photography/bin/createadmin
+sudo -u photography /opt/photography/bin/createadmin \
+  -email you@example.com -password "a-long-password" \
+  -db /opt/photography/db/gallery.sqlite -schema /opt/photography/db/schema.sql
+```
+
+The password is visible in your shell history. Clear it with `history -d`
+afterwards, or change it from the admin area later.
+
 ## Step 6: Configure Application Environment
 
 On the Pi, create `/opt/photography/.env`:
@@ -121,9 +157,12 @@ On the Pi, create `/opt/photography/.env`:
 MODE_ENV=production
 PORT=8080
 DB_PATH=./db/gallery.sqlite
-PHOTO_STORAGE_PATH=/mnt/photo-drive/originals
+PHOTO_STORAGE_PATH=/mnt/photo-drive
 SESSION_SECRET=your-random-secret-here
 ```
+
+`PHOTO_STORAGE_PATH` is the drive's root folder, not `originals/`. The server
+writes `originals/` and `derived/` inside it.
 
 **IMPORTANT**: Generate a secure `SESSION_SECRET`:
 
@@ -186,20 +225,21 @@ sudo systemctl status caddy
 ### Health Check
 
 ```bash
-curl -k https://localhost:8443/healthz
+curl -k https://localhost/healthz
 ```
 
-Should return `{"status":"ok"}`.
+Should return `{"status":"ok"}`. Caddy serves HTTPS on port 443.
 
 ### Login and Photo Upload
 
 1. Visit the site in your browser (ignore cert warning for self-signed cert)
-2. Navigate to `/admin/login`
-3. Create an admin user or verify login works
-4. Upload a test photo
-5. Verify it appears in the gallery
-6. Hide the photo and confirm it returns 404 when logged out
-7. Publish it and confirm it's visible again
+2. Navigate to `/admin/login` and log in with the account from Step 5a
+3. Upload a test photo
+4. Verify it appears in the gallery
+5. Hide the photo and confirm it returns 404 when logged out
+6. Publish it and confirm it's visible again
+7. Open the About tab in the admin area, save some text, and check that the
+   public `/about` page shows it
 
 ### Reboot Test
 
@@ -246,6 +286,45 @@ Set up `rsync` to a remote location (NAS, cloud storage, etc.):
 # Example: sync to a remote NAS every night
 0 3 * * * rsync -av --delete /mnt/photo-drive/originals/ user@nas:/backups/photography-originals/
 ```
+
+## Updating an Existing Deployment
+
+Do these steps in order. Back up the database before any schema change.
+
+1. **Back up the database** on the Pi:
+   ```bash
+   sudo -u photography cp /opt/photography/db/gallery.sqlite \
+     /mnt/photo-drive/backups/gallery-pre-update-$(date +%Y%m%d-%H%M%S).sqlite
+   ```
+2. **Apply the schema.** `schema.sql` only adds tables and columns that are
+   missing, so it is safe on a live database. Copy it to the Pi and run:
+   ```bash
+   scp db/schema.sql pi@your-pi-ip:~/
+   sudo cp ~/schema.sql /opt/photography/db/schema.sql
+   sudo chown photography:photography /opt/photography/db/schema.sql
+   sudo -u photography sqlite3 /opt/photography/db/gallery.sqlite < /opt/photography/db/schema.sql
+   ```
+   The About page needs the `about_page` table from this step.
+3. **Build and copy the new binary**, then restart:
+   ```bash
+   GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/server-arm64 ./server
+   scp bin/server-arm64 pi@your-pi-ip:~/
+   sudo mv ~/server-arm64 /opt/photography/bin/server-arm64
+   sudo systemctl restart photography
+   ```
+4. **Re-read EXIF for existing photos** (only needed for updates that change
+   EXIF extraction). Build the backfill tool and run it once:
+   ```bash
+   GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bin/backfill-exif-arm64 ./server/cmd/backfill-exif
+   scp bin/backfill-exif-arm64 pi@your-pi-ip:~/
+   sudo cp ~/backfill-exif-arm64 /opt/photography/bin/backfill-exif
+   sudo chmod +x /opt/photography/bin/backfill-exif
+   sudo -u photography /opt/photography/bin/backfill-exif \
+     -db /opt/photography/db/gallery.sqlite -storage /mnt/photo-drive
+   ```
+   It prints how many photos it refreshed and any failures, and is safe to run
+   again.
+5. **Check** the site, the admin area and the logs (`sudo journalctl -u photography -n 50`).
 
 ## Troubleshooting
 
