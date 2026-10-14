@@ -58,6 +58,10 @@ func HandleNewMsg(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"status": "fail"})
 			return
 		}
+		if strings.TrimSpace(msg.Email) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "fail", "error": "email is required"})
+			return
+		}
 
 		log.Info().Str("name", msg.Name).Msg("received contact message")
 		_, err := db.Exec(
@@ -103,12 +107,14 @@ func HandleNewMsgForm(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Validate email if provided
-		if email != "" {
-			if !isValidEmail(email) {
-				c.String(http.StatusBadRequest, "Invalid email address")
-				return
-			}
+		// Email is required so every message can be replied to
+		if email == "" {
+			c.String(http.StatusBadRequest, "Email is required")
+			return
+		}
+		if !isValidEmail(email) {
+			c.String(http.StatusBadRequest, "Invalid email address")
+			return
 		}
 
 		// Store message

@@ -67,8 +67,11 @@ func TestJSONHandlers(t *testing.T) {
 	if w := do(r, "GET", "/closed", "", ""); w.Code != 500 {
 		t.Errorf("closed db = %d", w.Code)
 	}
-	if w := do(r, "POST", "/msgs", "application/json", `{"name":"A","message":"hi"}`); w.Code != 500 {
+	if w := do(r, "POST", "/msgs", "application/json", `{"name":"A","email":"a@b.co","message":"hi"}`); w.Code != 500 {
 		t.Errorf("post on closed db = %d", w.Code)
+	}
+	if w := do(r, "POST", "/msgs", "application/json", `{"name":"A","message":"hi"}`); w.Code != 400 {
+		t.Errorf("json without email = %d, want 400", w.Code)
 	}
 }
 
@@ -92,12 +95,15 @@ func TestFormHandler(t *testing.T) {
 	if c := post(url.Values{"name": {"a"}, "message": {"m"}, "email": {"a@b.co"}}); c != 200 {
 		t.Errorf("valid = %d", c)
 	}
-	if c := post(url.Values{"name": {"a"}, "message": {"m"}}); c != 200 || count() != 2 {
-		t.Errorf("no email = %d count=%d", c, count())
+	if c := post(url.Values{"name": {"a"}, "message": {"m"}}); c != 400 || count() != 1 {
+		t.Errorf("no email = %d count=%d, want 400 and nothing stored", c, count())
+	}
+	if c := post(url.Values{"name": {"a"}, "message": {"m"}, "email": {"   "}}); c != 400 || count() != 1 {
+		t.Errorf("whitespace email = %d count=%d, want 400 and nothing stored", c, count())
 	}
 	// Close DB via the /closed route, then expect a storage failure.
 	do(r, "GET", "/closed", "", "")
-	if c := post(url.Values{"name": {"a"}, "message": {"m"}}); c != 500 {
+	if c := post(url.Values{"name": {"a"}, "message": {"m"}, "email": {"a@b.co"}}); c != 500 {
 		t.Errorf("closed db = %d", c)
 	}
 }
