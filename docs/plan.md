@@ -14,7 +14,7 @@ linked file for the full implementation plan.
 | 07 | [Contact form](tasks/07-contact-form.md) | Wire the existing contact handlers into routes, with a public form, honeypot, and rate limiting. | DONE |
 | 08 | [Raspberry Pi deployment](tasks/08-deployment-pi.md) | Cross-compiled binary, systemd service, Caddy reverse proxy, external drive mount, backups. | DONE |
 | 09 | [Site title](tasks/09-site-title.md) | Rename the header to "Bogdan Guna Photography" and center it. | DONE |
-| 10 | [Rename "Gallery" tab](tasks/10-rename-gallery-tab.md) | Nav label "Gallery" becomes "Home". | TODO |
+| 10 | [Rename "Gallery" tab](tasks/10-rename-gallery-tab.md) | Nav label "Gallery" becomes "Home". | DONE |
 | 11 | [New page](tasks/11-new-page.md) | Add a page between Home and Contact (content to be decided). | TODO |
 | 12 | [Contact Turnstile check](tasks/12-contact-turnstile.md) | Require a Cloudflare "Verify you are human" token to send a message. | TODO |
 | 13 | [Site-wide Cloudflare (evaluate)](tasks/13-site-wide-cloudflare.md) | Decide whether to put the whole site behind Cloudflare's proxy and challenges. | TODO |
