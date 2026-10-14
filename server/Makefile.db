@@ -18,7 +18,7 @@ BACKUP_FILE ?=
 TS := $(shell gdate -u +"%Y%m%dT%H%M%SZ" 2>/dev/null || date +"%Y%m%dT%H%M%SZ")
 BACKUP_FILE_DEFAULT := $(BACKUP_DIR)/photo.sqlite.$(TS).bak
 
-.PHONY: init schema clear reset start stop shell backup restore
+.PHONY: init schema clear reset shell backup restore
 
 init: $(DB_DIR) $(SCHEMA_FILE)
 	@echo "Initializing DB at $(DB_FILE)"

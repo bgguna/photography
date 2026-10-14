@@ -336,23 +336,6 @@ func (ps *PhotoService) GetAdminPhotoFile(photoID int, size string) (string, err
 	}
 }
 
-// RegenerateThumbnails regenerates thumbnail and web sizes from the original.
-func (ps *PhotoService) RegenerateThumbnails(photoID int) error {
-	photo, err := ps.GetPhoto(photoID)
-	if err != nil {
-		return err
-	}
-
-	// Read original file
-	data, err := os.ReadFile(photo.OriginalPath)
-	if err != nil {
-		return fmt.Errorf("failed to read original: %w", err)
-	}
-
-	// Generate derived sizes
-	return ps.generateDerivedSizes(photoID, data)
-}
-
 // RefreshEXIF re-reads EXIF from the stored original of every photo and writes
 // the result back. It repairs rows saved by older extraction code, such as
 // camera strings wrapped in quotes. Running it again changes nothing once the

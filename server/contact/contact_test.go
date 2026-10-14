@@ -28,10 +28,8 @@ func setup(t *testing.T) (*gin.Engine, func() int) {
 		t.Fatal(err)
 	}
 	r := gin.New()
-	r.GET("/msgs", GetMessages(d))
-	r.POST("/msgs", HandleNewMsg(d))
 	r.POST("/form", HandleNewMsgForm(d))
-	r.GET("/closed", func(c *gin.Context) { d.Close(); GetMessages(d)(c) })
+	r.GET("/closed", func(c *gin.Context) { d.Close(); c.Status(http.StatusOK) })
 	count := func() int {
 		var n int
 		d.QueryRow("SELECT COUNT(*) FROM contact_messages").Scan(&n)
@@ -48,31 +46,6 @@ func do(r http.Handler, method, path, ct, body string) *httptest.ResponseRecorde
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
-}
-
-func TestJSONHandlers(t *testing.T) {
-	r, count := setup(t)
-
-	if w := do(r, "POST", "/msgs", "application/json", "{bad"); w.Code != 400 {
-		t.Errorf("bad json = %d", w.Code)
-	}
-	w := do(r, "POST", "/msgs", "application/json", `{"name":"A","email":"a@b.co","message":"hi"}`)
-	if w.Code != 200 || count() != 1 {
-		t.Fatalf("post = %d count=%d", w.Code, count())
-	}
-	w = do(r, "GET", "/msgs", "", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"name":"A"`) {
-		t.Errorf("get = %d %s", w.Code, w.Body.String())
-	}
-	if w := do(r, "GET", "/closed", "", ""); w.Code != 500 {
-		t.Errorf("closed db = %d", w.Code)
-	}
-	if w := do(r, "POST", "/msgs", "application/json", `{"name":"A","email":"a@b.co","message":"hi"}`); w.Code != 500 {
-		t.Errorf("post on closed db = %d", w.Code)
-	}
-	if w := do(r, "POST", "/msgs", "application/json", `{"name":"A","message":"hi"}`); w.Code != 400 {
-		t.Errorf("json without email = %d, want 400", w.Code)
-	}
 }
 
 func TestFormHandler(t *testing.T) {

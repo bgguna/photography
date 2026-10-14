@@ -11,7 +11,7 @@ endif
 # ---------- Project ----------
 # =============================
 
-current_dir	=	${PWD}
+current_dir	=	$(CURDIR)
 bin_dir		=	${current_dir}/bin
 out_dir		=	${current_dir}/out
 binary		=	server
@@ -27,10 +27,10 @@ coverage	=	coverage.out
 gobuild		=	go build
 gorun		=	go run
 goget		=	go get
-gofmt		=	got fmt
-golint		=	golint
-gotest		=	go test
+gofmt		=	go fmt
 gocover		=	go tool cover
+gotest		=	go test
+govet		=	go vet
 ldflags		=	"-s -w"
 modules		=	./...
 
@@ -52,9 +52,9 @@ format:
 	@ echo "Finished formatting code."
 
 lint:
-	@ echo "Linting the code to Go standards..."
-	@ $(golint) $(modules)
-	@ echo "Finished linting."
+	@ echo "Checking the code for common mistakes..."
+	@ $(govet) $(modules)
+	@ echo "Finished checking."
 
 build:
 	@ echo "Building server binaries..."
@@ -80,6 +80,15 @@ coverage:
 # Runs a suite of makefile commands to clean, format, build and test the server application codebase.
 all: clean format build test
 
+# Admin and maintenance commands
+create-admin:
+	@ test -n "$(EMAIL)" && test -n "$(PASSWORD)" || { echo "Usage: make create-admin EMAIL=you@example.com PASSWORD=your-password"; exit 1; }
+	$(gorun) ./cmd/createadmin -email "$(EMAIL)" -password "$(PASSWORD)"
+
+backfill-exif:
+	@ echo "Re-reading EXIF for stored photos (back up the database first)..."
+	$(gorun) ./cmd/backfill-exif
+
 # Database Commands
 init-db:
 	@$(MAKE) -f Makefile.db init
@@ -93,24 +102,31 @@ clear-db:
 	@$(MAKE) -f Makefile.db clear
 reset-db:
 	@$(MAKE) -f Makefile.db reset
-start-db:
-	@$(MAKE) -f Makefile.db start
-stop-db:
-	@$(MAKE) -f Makefile.db stop
 
 # Prints the manual, a list of available makefile commands that can be used for the server application.
 help:
-	@ echo "\
-	Manual for Server Application\n\
-	\n\
-	Available commands:\n\
-	--------------------\n\
-	* clean		deletes the generated files\n\
-	* format	formats the code to the Go standards\n\
-	* lint		runs the linter on the code, highlighting code smells\n\
-	* build		builds the server binary files\n\
-	* run		runs the server\n\
-	* test		runs the tests with coverage for all packages in the project\n\
-	* coverage	runs the tests and writes a test coverage report\n\
-	* all		formats, cleans, builds and tests the binaries\n\
-	* help		prints this menu again\n\"
+	@ echo "Manual for Server Application"
+	@ echo ""
+	@ echo "Development:"
+	@ echo "  run              runs the server (build first)"
+	@ echo "  build            builds the server binary into bin/"
+	@ echo "  format           formats the code to the Go standards"
+	@ echo "  lint             runs go vet on the code"
+	@ echo "  test             runs the tests with coverage for all packages"
+	@ echo "  coverage         runs the tests and writes a test coverage report"
+	@ echo "  all              cleans, formats, builds and tests"
+	@ echo "  clean            deletes the generated files"
+	@ echo ""
+	@ echo "Admin and maintenance:"
+	@ echo "  create-admin     creates an admin user: make create-admin EMAIL=... PASSWORD=..."
+	@ echo "  backfill-exif    re-reads EXIF for stored photos (safe to re-run)"
+	@ echo ""
+	@ echo "Database (see Makefile.db):"
+	@ echo "  init-db          creates the database from db/schema.sql (safe to re-run)"
+	@ echo "  shell-db         opens the database in the sqlite3 shell"
+	@ echo "  backup-db        copies the database into the backup folder"
+	@ echo "  restore-db       restores a backup: make restore-db BACKUP_FILE=..."
+	@ echo "  reset-db         deletes and recreates the database (destructive)"
+	@ echo "  clear-db         same as reset-db"
+	@ echo ""
+	@ echo "  help             prints this menu again"
