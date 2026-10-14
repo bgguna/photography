@@ -1,5 +1,8 @@
 # Bogdan Guna Photography
 
+[![Go version](https://img.shields.io/github/go-mod/go-version/bgguna/photography?filename=server%2Fgo.mod&label=Go)](server/go.mod)
+[![Last commit](https://img.shields.io/github/last-commit/bgguna/photography?label=last%20commit)](https://github.com/bgguna/photography/commits/main)
+
 A self-hosted photography portfolio: a public site with a home gallery, an
 About page and a contact form, plus an admin area for publishing photos,
 editing the About text and reading contact messages. It runs on a Raspberry
