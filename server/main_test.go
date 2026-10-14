@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bgguna/photography/internal/about"
 	"github.com/bgguna/photography/internal/db"
 )
 
@@ -161,6 +162,7 @@ func TestSetupRouter_PublicRoutes(t *testing.T) {
 		{"GET", "/", 200, 299, "home page"},
 		{"GET", "/photos/1/thumb", 404, 404, "missing photo thumbnail"},
 		{"GET", "/photos/1/web", 404, 404, "missing photo web"},
+		{"GET", "/about", 200, 299, "about page"},
 		{"GET", "/contact", 200, 299, "contact form"},
 		{"POST", "/contact", 200, 499, "contact form submit"},
 	}
@@ -213,6 +215,8 @@ func TestSetupRouter_AdminRoutes(t *testing.T) {
 		{"DELETE", "/admin/photos/1"},
 		{"POST", "/admin/photos/1/visibility"},
 		{"GET", "/admin/messages"},
+		{"GET", "/admin/about"},
+		{"POST", "/admin/about"},
 	}
 
 	for _, route := range protectedRoutes {
@@ -264,6 +268,52 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestAboutPage_EmptyByDefault(t *testing.T) {
+	tmpDb := openTestDB(t)
+	defer tmpDb.Close()
+
+	w := httptest.NewRecorder()
+	setupRouter(tmpDb).ServeHTTP(w, httptest.NewRequest("GET", "/about", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /about = %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "Nothing here yet.") {
+		t.Error("empty About page missing placeholder text")
+	}
+}
+
+func TestAboutPage_EscapesAndSplitsParagraphs(t *testing.T) {
+	tmpDb := openTestDB(t)
+	defer tmpDb.Close()
+
+	if err := about.NewService(tmpDb).Save("Hi <script>alert(1)</script>\nsecond line\n\nNext paragraph"); err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	setupRouter(tmpDb).ServeHTTP(w, httptest.NewRequest("GET", "/about", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /about = %d", w.Code)
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "<script>alert(1)</script>") {
+		t.Error("About text was not HTML-escaped")
+	}
+	for _, want := range []string{
+		"<p>Hi &lt;script&gt;alert(1)&lt;/script&gt;\nsecond line</p>",
+		"<p>Next paragraph</p>",
+		`href="/about" class="active" aria-current="page"`,
+		`<a href="/">Home</a>`,
+		"<title>About — Bogdan Guna Photography</title>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("About page missing %q", want)
+		}
+	}
 }
 
 func TestHomePage_ShowsPhotoMetadata(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/bgguna/photography/internal/about"
 	"github.com/bgguna/photography/internal/auth"
 )
 
@@ -297,6 +298,49 @@ func TestAdminFlow_Messages(t *testing.T) {
 	db.QueryRow("SELECT COUNT(*) FROM contact_messages").Scan(&n)
 	if n != 0 {
 		t.Error("message not deleted")
+	}
+}
+
+func TestAdminFlow_AboutPage(t *testing.T) {
+	a, database := newAdminClient(t)
+	svc := about.NewService(database)
+
+	// Without the CSRF token the save is refused and nothing is stored.
+	if w := a.send("POST", "/admin/about", url.Values{"body": {"Sneaky"}}, false); w.Code == http.StatusSeeOther {
+		t.Fatalf("POST without CSRF token was accepted")
+	}
+	if got, _ := svc.Get(); got != "" {
+		t.Fatalf("save without CSRF token stored %q", got)
+	}
+
+	// With the token, the text is saved and the admin is sent back with a flag.
+	w := a.send("POST", "/admin/about", url.Values{"body": {"Hello\n\nWorld"}}, true)
+	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/admin/about?saved=1" {
+		t.Fatalf("save: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	if got, _ := svc.Get(); got != "Hello\n\nWorld" {
+		t.Fatalf("stored %q", got)
+	}
+
+	page := a.get("/admin/about?saved=1").Body.String()
+	if !strings.Contains(page, "Saved.") || !strings.Contains(page, "Hello") {
+		t.Error("admin About page does not show the saved text and confirmation")
+	}
+
+	// Over the limit: rejected with 400, previous text kept.
+	long := strings.Repeat("a", about.MaxLength+1)
+	if w := a.send("POST", "/admin/about", url.Values{"body": {long}}, true); w.Code != http.StatusBadRequest {
+		t.Errorf("too-long save: %d, want 400", w.Code)
+	}
+	if got, _ := svc.Get(); got != "Hello\n\nWorld" {
+		t.Errorf("too-long save changed stored text")
+	}
+
+	// The public page shows the new text.
+	pub := httptest.NewRecorder()
+	a.router.ServeHTTP(pub, httptest.NewRequest("GET", "/about", nil))
+	if !strings.Contains(pub.Body.String(), "<p>World</p>") {
+		t.Error("public About page does not show the saved paragraphs")
 	}
 }
 

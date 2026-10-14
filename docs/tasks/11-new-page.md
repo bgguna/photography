@@ -9,41 +9,38 @@ Add a third public page, linked in the nav between "Home" and "Contact".
 Do after [09](09-site-title.md) and [10](10-rename-gallery-tab.md), which
 edit the same nav markup.
 
-## Open questions (resolve before starting)
+## Decisions
 
-- **What is the page?** Its name, URL slug and content aren't decided yet. An
-  "About" page (bio, gear, portrait photo) is the usual choice for a
-  portfolio, but this task doesn't assume that.
-- **Static or admin-editable?** A hard-coded template is the simplest option.
-  If the content should be editable from the admin UI, that needs a DB table
-  and an admin form, so it becomes its own larger task.
+- **Page:** "About", at `/about`.
+- **Content:** admin-editable. The text is stored in a new `about_page` table
+  (single row) and edited from a new "About" tab in the admin UI.
+- **Header:** shared first. The header and nav markup now live in one
+  `site_header` partial used by the gallery and contact pages.
 
-## Scope (assuming a static page)
+## Implemented as
 
-- New template `server/internal/web/templates/<page>.html`, built on
-  `layout.html` like `home.html` is
-- `server/main.go`: register `GET /<slug>`
-- `layout.html` and `contact.html`: add the nav link
+- `db/schema.sql`: `about_page` table. Existing databases pick it up with
+  `make init-db`, which is idempotent.
+- `server/internal/about/`: `Get`, `Save` (10,000-character limit) and
+  `Paragraphs` (splits on blank lines). Text is HTML-escaped on output, and
+  single line breaks are kept.
+- `server/main.go`: `GET /about`. Pages now receive `Title`, `Description` and
+  `Page` from their route, and `layout.html` picks the page content by `Page`.
+  This replaced the per-page `title`, `og_tags` and `content` blocks, which
+  two pages can't both define.
+- `server/admin_routes.go`: `GET /admin/about` (form) and `POST /admin/about`
+  (save, CSRF-protected).
+- Tests: `internal/about/about_test.go`, plus routes, escaping and the admin
+  save flow in `main_test.go` and `admin_flow_test.go`.
 
 ## Steps
 
-1. **Optional prerequisite: share the header.** The header and nav are
-   currently duplicated in `layout.html` and in the standalone
-   `contact.html`, so every nav change has to be made twice. Moving
-   `contact.html` onto `layout.html`, or pulling the header into a shared
-   `{{define "header"}}` partial, would make this task and any future nav
-   edits one-place changes.
-2. **Template**: create the page with `title`, `og_tags` and `content` blocks,
-   following `home.html`.
-3. **Route**: add `router.GET("/<slug>", ...)` next to the existing `/` and
-   `/contact` handlers in `main.go`.
-4. **Nav**: insert `<a href="/<slug>">…</a>` between Home and Contact in
-   every copy of the header.
-5. **Theme**: use the existing CSS variables (`--primary-text`,
-   `--muted-text`, `--border-color` and so on) so the page works in light and
-   dark mode without extra rules.
-6. **Test**: add a route test like the existing `/contact` one: 200 status,
-   expected heading present.
+1. [x] Share the header as a `site_header` partial.
+2. [x] Template: `about.html`, rendered through `layout.html`.
+3. [x] Route: `GET /about` in `main.go`.
+4. [x] Nav: Home → About → Contact on every public page.
+5. [x] Theme: uses the existing CSS variables.
+6. [x] Tests: route, escaping, empty state, and the admin save flow.
 
 ## Acceptance criteria
 

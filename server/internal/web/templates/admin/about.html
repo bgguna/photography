@@ -1,0 +1,13 @@
+{{define "admin_about_content"}}
+<h2>About page</h2>
+{{if .Saved}}<p class="text-success">Saved.</p>{{end}}
+<p class="message-meta">Separate paragraphs with a blank line. Maximum {{.MaxLength}} characters.</p>
+
+<form method="POST" action="/admin/about" class="card">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <textarea name="body" rows="16" maxlength="{{.MaxLength}}" aria-label="About page text">{{.Body}}</textarea>
+    <div style="margin-top: 1rem">
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{{end}}

@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 
+-- Editable text for the public About page. Single row, id always 1.
+CREATE TABLE IF NOT EXISTS about_page (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  body       TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
 -- Initialize single-row settings
 INSERT OR IGNORE INTO gallery_settings (id, gallery_public, gallery_password_hash, updated_at)
 VALUES (1, 1, NULL, strftime('%Y-%m-%dT%H:%M:%fZ','now'));

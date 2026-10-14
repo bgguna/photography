@@ -46,6 +46,13 @@ header {
     position: relative;
 }
 
+/* Underline the link for the page being viewed. */
+nav a.active {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.3em;
+}
+
 .theme-toggle {
     position: absolute;
     top: 1rem;

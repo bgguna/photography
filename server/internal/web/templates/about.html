@@ -1,0 +1,8 @@
+{{define "about_content"}}
+<div class="page-text">
+    <h2>Bogdan Guna</h2>
+    {{range .AboutParagraphs}}<p>{{.}}</p>
+    {{else}}<p>Nothing here yet.</p>
+    {{end}}
+</div>
+{{end}}

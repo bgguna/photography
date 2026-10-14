@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/bgguna/photography/contact"
+	"github.com/bgguna/photography/internal/about"
 	"github.com/bgguna/photography/internal/admin"
 	"github.com/bgguna/photography/internal/auth"
 	"github.com/bgguna/photography/internal/config"
@@ -146,6 +147,7 @@ func setupRouter(database *sql.DB) *gin.Engine {
 	photoSvc := photo.NewPhotoService(database, os.Getenv("PHOTO_STORAGE_PATH"))
 	gal := gallery.NewGallery(photoSvc)
 	adminSvc := admin.NewAdminService(database, photoSvc)
+	aboutSvc := about.NewService(database)
 
 	tmpl, err := loadTemplates()
 	if err != nil {
@@ -174,7 +176,28 @@ func setupRouter(database *sql.DB) *gin.Engine {
 			return
 		}
 
-		render(c, tmpl, http.StatusOK, "layout.html", gin.H{"Photos": photos})
+		render(c, tmpl, http.StatusOK, "layout.html", gin.H{
+			"Title":       "Bogdan Guna Photography",
+			"Description": "A personal photography gallery",
+			"Page":        "home",
+			"Photos":      photos,
+		})
+	})
+
+	router.GET("/about", func(c *gin.Context) {
+		body, err := aboutSvc.Get()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get about page")
+			c.String(http.StatusInternalServerError, "Error loading page")
+			return
+		}
+
+		render(c, tmpl, http.StatusOK, "layout.html", gin.H{
+			"Title":           "About — Bogdan Guna Photography",
+			"Description":     "A personal photography gallery",
+			"Page":            "about",
+			"AboutParagraphs": about.Paragraphs(body),
+		})
 	})
 
 	router.GET("/photos/:id/thumb", func(c *gin.Context) {
@@ -215,7 +238,7 @@ func setupRouter(database *sql.DB) *gin.Engine {
 	contactLimiter := auth.NewRateLimiter()
 
 	router.GET("/contact", func(c *gin.Context) {
-		render(c, tmpl, http.StatusOK, "contact_page", gin.H{})
+		render(c, tmpl, http.StatusOK, "contact_page", gin.H{"Page": "contact"})
 	})
 
 	router.POST("/contact", func(c *gin.Context) {
@@ -234,6 +257,7 @@ func setupRouter(database *sql.DB) *gin.Engine {
 		tmpl:         tmpl,
 		authSvc:      authSvc,
 		adminSvc:     adminSvc,
+		aboutSvc:     aboutSvc,
 		photoSvc:     photoSvc,
 		loginLimiter: loginLimiter,
 		csrfKey:      csrfKey,

@@ -1,13 +1,4 @@
-{{define "title"}}Bogdan Guna Photography{{end}}
-
-{{define "og_tags"}}
-<meta property="og:title" content="Bogdan Guna Photography">
-<meta property="og:description" content="A personal photography gallery">
-<meta property="og:url" content="/">
-<meta property="og:type" content="website">
-{{end}}
-
-{{define "content"}}
+{{define "home_content"}}
 <div x-data="lightbox()" @keydown.escape="close()" @keydown.arrow-left="prev()" @keydown.arrow-right="next()" class="gallery-container">
     {{if not .Photos}}
         <p style="text-align: center; padding: 2rem; color: #999;">No photos yet.</p>

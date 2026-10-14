@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
+	"github.com/bgguna/photography/internal/about"
 	"github.com/bgguna/photography/internal/admin"
 	"github.com/bgguna/photography/internal/auth"
 	"github.com/bgguna/photography/photo"
@@ -19,6 +21,7 @@ type adminDeps struct {
 	tmpl         *template.Template
 	authSvc      *auth.AuthService
 	adminSvc     *admin.AdminService
+	aboutSvc     *about.Service
 	photoSvc     *photo.PhotoService
 	loginLimiter *auth.RateLimiter
 	csrfKey      []byte
@@ -265,5 +268,30 @@ func registerAdminRoutes(router *gin.Engine, d adminDeps) {
 			return
 		}
 		c.Status(http.StatusOK)
+	})
+
+	protected.GET("/about", func(c *gin.Context) {
+		body, err := d.aboutSvc.Get()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get about page")
+		}
+		page(c, "about", gin.H{
+			"Body":      body,
+			"Saved":     c.Query("saved") == "1",
+			"MaxLength": about.MaxLength,
+		})
+	})
+
+	protected.POST("/about", func(c *gin.Context) {
+		if err := d.aboutSvc.Save(c.PostForm("body")); err != nil {
+			if errors.Is(err, about.ErrTooLong) {
+				c.String(http.StatusBadRequest, "Text is too long (maximum "+strconv.Itoa(about.MaxLength)+" characters)")
+				return
+			}
+			log.Error().Err(err).Msg("Failed to save about page")
+			c.String(http.StatusInternalServerError, "Failed to save about page")
+			return
+		}
+		c.Redirect(http.StatusSeeOther, "/admin/about?saved=1")
 	})
 }
