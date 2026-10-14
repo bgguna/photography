@@ -18,6 +18,6 @@ linked file for the full implementation plan.
 | 11 | [New page](tasks/11-new-page.md) | About page between Home and Contact, text editable from admin. | DONE |
 | 12 | [Contact Turnstile check](tasks/12-contact-turnstile.md) | Require a Cloudflare "Verify you are human" token to send a message. | TODO |
 | 13 | [Site-wide Cloudflare (evaluate)](tasks/13-site-wide-cloudflare.md) | Decide whether to put the whole site behind Cloudflare's proxy and challenges. | TODO |
-| 14 | [Contact heading spacing](tasks/14-contact-spacing.md) | More space between "Get in Touch" and the form. | TODO |
+| 14 | [Contact heading spacing](tasks/14-contact-spacing.md) | More space between "Get in Touch" and the form. | DONE |
 | 15 | [Required contact email](tasks/15-contact-email-required.md) | Email becomes mandatory, enforced client- and server-side. | TODO |
 | 16 | [EXIF quotes](tasks/16-exif-quotes.md) | Backfill photos stored with quoted EXIF values before the extraction fix. | TODO |
