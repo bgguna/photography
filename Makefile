@@ -1,4 +1,4 @@
-.PHONY: help build build-arm64 build-arm build-local test deploy-info clean
+.PHONY: help build build-arm64 build-arm build-local test deploy-info clean server-run server-test server-test-coverage
 
 help:
 	@echo "Photography Portfolio Build Targets"
@@ -9,6 +9,11 @@ help:
 	@echo "test            - Run all tests"
 	@echo "deploy-info     - Show deployment instructions"
 	@echo "clean           - Remove build artifacts"
+	@echo "server-run      - Run the server from source"
+	@echo "server-test     - Run the server tests"
+	@echo "server-test-coverage - Run the server tests with coverage"
+	@echo ""
+	@echo "Database and admin commands live in server/Makefile (run 'make help' there)."
 
 build-local:
 	@echo "Building for local development..."
@@ -40,7 +45,8 @@ deploy-info:
 	@echo "2. Cross-compile: make build-arm64 (or build-arm)"
 	@echo "3. Review deploy/DEPLOYMENT.md for complete setup"
 	@echo "4. Set up systemd service and external drive"
-	@echo "5. Run smoke tests"
+	@echo "5. Create the database schema and first admin user (DEPLOYMENT.md Step 5a)"
+	@echo "6. Run smoke tests (DEPLOYMENT.md Step 10)"
 
 clean:
 	@echo "Cleaning build artifacts..."
