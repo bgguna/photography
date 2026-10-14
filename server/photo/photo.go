@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
+	"math/big"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -158,15 +159,7 @@ func (ps *PhotoService) UploadPhoto(file io.Reader, fileHeader *multipart.FileHe
 	// Extract EXIF and update photo
 	exifData := extractEXIF(data)
 	if exifData != nil {
-		photo.DatetimeOriginal = exifData.DatetimeOriginal
-		photo.CameraMake = exifData.CameraMake
-		photo.CameraModel = exifData.CameraModel
-		photo.GPSLat = exifData.GPSLat
-		photo.GPSLng = exifData.GPSLng
-		photo.ISO = exifData.ISO
-		photo.Aperture = exifData.Aperture
-		photo.ShutterSpeed = exifData.ShutterSpeed
-		photo.FocalLength = exifData.FocalLength
+		applyEXIF(photo, exifData)
 
 		if err := ps.updatePhotoEXIF(photo); err != nil {
 			log.Warn().Err(err).Msgf("Failed to update EXIF for photo %d", photo.ID)
@@ -360,7 +353,93 @@ func (ps *PhotoService) RegenerateThumbnails(photoID int) error {
 	return ps.generateDerivedSizes(photoID, data)
 }
 
+// RefreshEXIF re-reads EXIF from the stored original of every photo and writes
+// the result back. It repairs rows saved by older extraction code, such as
+// camera strings wrapped in quotes. Running it again changes nothing once the
+// rows are correct. It returns how many photos were refreshed and any errors,
+// one per photo that could not be processed.
+func (ps *PhotoService) RefreshEXIF() (int, []error) {
+	rows, err := ps.db.Query("SELECT id FROM photos ORDER BY id")
+	if err != nil {
+		return 0, []error{fmt.Errorf("failed to list photos: %w", err)}
+	}
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, []error{fmt.Errorf("failed to scan photo id: %w", err)}
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, []error{fmt.Errorf("failed to list photos: %w", err)}
+	}
+
+	var errs []error
+	refreshed := 0
+	for _, id := range ids {
+		if err := ps.refreshPhotoEXIF(id); err != nil {
+			errs = append(errs, fmt.Errorf("photo %d: %w", id, err))
+			continue
+		}
+		refreshed++
+	}
+	return refreshed, errs
+}
+
+// refreshPhotoEXIF re-extracts EXIF for one photo from its original file.
+func (ps *PhotoService) refreshPhotoEXIF(photoID int) error {
+	photo, err := ps.GetPhoto(photoID)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(photo.OriginalPath)
+	if err != nil {
+		return fmt.Errorf("failed to read original: %w", err)
+	}
+	applyEXIF(photo, extractEXIF(data))
+	return ps.updatePhotoEXIF(photo)
+}
+
+// applyEXIF copies extracted EXIF values onto a photo.
+func applyEXIF(photo *Photo, exifData *EXIFData) {
+	photo.DatetimeOriginal = exifData.DatetimeOriginal
+	photo.CameraMake = exifData.CameraMake
+	photo.CameraModel = exifData.CameraModel
+	photo.GPSLat = exifData.GPSLat
+	photo.GPSLng = exifData.GPSLng
+	photo.ISO = exifData.ISO
+	photo.Aperture = exifData.Aperture
+	photo.ShutterSpeed = exifData.ShutterSpeed
+	photo.FocalLength = exifData.FocalLength
+}
+
 // Private helper functions
+
+// cleanEXIFString trims the whitespace and NUL padding that some cameras write
+// into string tags.
+func cleanEXIFString(s string) string {
+	return strings.Trim(s, " \t\r\n\x00")
+}
+
+// nonEmpty returns a pointer to s, or nil if s is empty.
+func nonEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// formatShutter renders an exposure time as a reduced fraction ("1/250"),
+// or as a whole number when it is an integer ("2" rather than "2/1").
+func formatShutter(r *big.Rat) string {
+	if r.IsInt() {
+		return r.Num().String()
+	}
+	return r.String()
+}
 
 // createPhoto inserts a new photo into the database.
 func (ps *PhotoService) createPhoto(photo *Photo) error {
@@ -590,14 +669,14 @@ func extractEXIF(data []byte) *EXIFData {
 	// Camera Make
 	if make, err := x.Get(exif.Make); err == nil && make != nil {
 		if str, err := make.StringVal(); err == nil {
-			exifData.CameraMake = &str
+			exifData.CameraMake = nonEmpty(cleanEXIFString(str))
 		}
 	}
 
 	// Camera Model
 	if model, err := x.Get(exif.Model); err == nil && model != nil {
 		if str, err := model.StringVal(); err == nil {
-			exifData.CameraModel = &str
+			exifData.CameraModel = nonEmpty(cleanEXIFString(str))
 		}
 	}
 
@@ -625,7 +704,7 @@ func extractEXIF(data []byte) *EXIFData {
 	// Shutter Speed
 	if ss, err := x.Get(exif.ExposureTime); err == nil && ss != nil {
 		if r, err := ss.Rat(0); err == nil {
-			str := r.String()
+			str := formatShutter(r)
 			exifData.ShutterSpeed = &str
 		}
 	}

@@ -20,4 +20,4 @@ linked file for the full implementation plan.
 | 13 | [Site-wide Cloudflare (evaluate)](tasks/13-site-wide-cloudflare.md) | Decide whether to put the whole site behind Cloudflare's proxy and challenges. | TODO |
 | 14 | [Contact heading spacing](tasks/14-contact-spacing.md) | More space between "Get in Touch" and the form. | DONE |
 | 15 | [Required contact email](tasks/15-contact-email-required.md) | Email becomes mandatory, enforced client- and server-side. | DONE |
-| 16 | [EXIF quotes](tasks/16-exif-quotes.md) | Backfill photos stored with quoted EXIF values before the extraction fix. | TODO |
+| 16 | [EXIF quotes](tasks/16-exif-quotes.md) | Backfill photos stored with quoted EXIF values before the extraction fix. | DONE |

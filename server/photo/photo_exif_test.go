@@ -3,6 +3,7 @@ package photo
 import (
 	"bytes"
 	"encoding/binary"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -137,6 +138,95 @@ func TestExtractEXIF_Full(t *testing.T) {
 	}
 	if e.GPSLng == nil || *e.GPSLng != 9 {
 		t.Errorf("lng = %v", e.GPSLng)
+	}
+}
+
+func TestCleanEXIFString(t *testing.T) {
+	for in, want := range map[string]string{
+		"NIKON Z 6":       "NIKON Z 6",
+		"Canon\x00":       "Canon",
+		"  Sony \x00\x00": "Sony",
+		"\x00":            "",
+	} {
+		if got := cleanEXIFString(in); got != want {
+			t.Errorf("cleanEXIFString(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestFormatShutter(t *testing.T) {
+	for _, tc := range []struct {
+		num, den int64
+		want     string
+	}{
+		{1, 250, "1/250"},
+		{10, 1600, "1/160"},
+		{2, 1, "2"},
+		{3, 2, "3/2"},
+	} {
+		if got := formatShutter(big.NewRat(tc.num, tc.den)); got != tc.want {
+			t.Errorf("formatShutter(%d/%d) = %q, want %q", tc.num, tc.den, got, tc.want)
+		}
+	}
+}
+
+func TestRefreshEXIF(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+	ps := NewPhotoService(database, t.TempDir())
+
+	fh, f := createTestMultipartFile(t, "e.jpg", buildEXIFJPEG())
+	defer f.Close()
+	p, err := ps.UploadPhoto(f, fh, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Put back the values the old extraction code stored: quoted, unreduced.
+	if _, err := database.Exec(
+		`UPDATE photos SET camera_make = '"Stale"', camera_model = '"stale"', shutter_speed = '"10/1600"' WHERE id = ?`,
+		p.ID,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	for run := 1; run <= 2; run++ {
+		refreshed, errs := ps.RefreshEXIF()
+		if refreshed != 1 || len(errs) != 0 {
+			t.Fatalf("run %d: refreshed=%d errs=%v", run, refreshed, errs)
+		}
+		got, err := ps.GetPhoto(p.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.CameraMake == nil || *got.CameraMake != "Canon" {
+			t.Errorf("run %d: make = %v", run, got.CameraMake)
+		}
+		if got.CameraModel == nil || *got.CameraModel != "EOS R" {
+			t.Errorf("run %d: model = %v", run, got.CameraModel)
+		}
+		if got.ShutterSpeed == nil || *got.ShutterSpeed != "1/250" {
+			t.Errorf("run %d: shutter = %v", run, got.ShutterSpeed)
+		}
+	}
+
+	// A photo whose original is missing is reported, and the rest still run.
+	if err := os.Remove(p.OriginalPath); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, errs := ps.RefreshEXIF()
+	if refreshed != 0 || len(errs) != 1 {
+		t.Errorf("missing original: refreshed=%d errs=%v", refreshed, errs)
+	}
+}
+
+func TestRefreshEXIF_ClosedDB(t *testing.T) {
+	database := setupTestDB(t)
+	ps := NewPhotoService(database, t.TempDir())
+	database.Close()
+
+	if refreshed, errs := ps.RefreshEXIF(); refreshed != 0 || len(errs) == 0 {
+		t.Errorf("closed db: refreshed=%d errs=%v", refreshed, errs)
 	}
 }
 
